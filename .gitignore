@@ -1,0 +1,5 @@
+build/
+.xmake/
+.vs/
+__pycache__/
+plugin/lib/commonlibsse-ng/

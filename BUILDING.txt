@@ -1,0 +1,24 @@
+Needs Widget AIO 2.3.0 - source code
+Copyright (C) 2026 mxdie
+
+Licensed under the GNU General Public License v3.0, see LICENSE.txt.
+
+The dll
+-------
+1. Put CommonLibSSE-NG 13.1.0, unmodified, in plugin/lib/commonlibsse-ng:
+     git clone https://github.com/alandtse/CommonLibSSE-NG plugin/lib/commonlibsse-ng
+     git -C plugin/lib/commonlibsse-ng checkout 12d61f3c39f7d4ba1b1ab543df2bca0e613dc747
+2. In plugin/, run: xmake build
+   (xmake and Visual Studio 2022 with C++). The dll lands in plugin/build/.
+
+The widget and pictures
+-----------------------
+In swf/, run: python build_widget.py
+It needs JPEXS FFDec (ffdec-cli) to compile src/widget.as, and Ruffle desktop
+for the --probe check. Paths to both are at the top of build_widget.py.
+
+package.py does all of it and zips the mod the way it's released.
+
+plugin/lib/SKSEMenuFramework is the SKSE Menu Framework header, MIT License
+(its LICENSE is next to it). The icons in swf/art/game-icons are from
+game-icons.net under CC BY 3.0, see the README in plugin/dist.
