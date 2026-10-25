@@ -27,15 +27,20 @@ namespace SettingsUI
 			}
 		}
 
+		bool saveFailed = false;  // the last Save couldn't write the file
+
 		void Footer(void (*a_restore)(), const char* a_restoreText)
 		{
 			ImGui::Separator();
 			if (ImGui::Button("Save settings")) {
-				Settings::Save();
+				saveFailed = !Settings::Save();
 			}
 			if (Settings::HasUnsavedChanges()) {
 				ImGui::SameLine();
-				ImGui::TextDisabled("Not saved yet");
+				// Bright, not greyed out: players took moving the sliders for saving (2.3.0).
+				ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.75f, 0.3f, 1.0f));
+				ImGui::Text("%s", saveFailed ? "Could not save. NeedsWidget.log says why." : "Not saved yet. Press Save settings to keep it.");
+				ImGui::PopStyleColor();
 			}
 			ImGui::SameLine();
 			if (ImGui::Button(a_restoreText)) {
@@ -233,8 +238,14 @@ namespace SettingsUI
 			changed |= ImGui::RadioButton("Show the stage's name", &g.numberShows, 1);
 			changed |= ImGui::SliderFloat("Number size", &g.numberSize, 50.0f, 400.0f, "%.0f%%");
 			Hint("On top of the icons' own size.");
-			changed |= ImGui::SliderFloat("Distance from the icon", &g.numberGap, -30.0f, 60.0f, "%.0f");
-			changed |= ImGui::SliderFloat("Move sideways", &g.numberX, -80.0f, 80.0f, "%.0f");
+			changed |= ImGui::SliderFloat("Distance from the icon", &g.numberGap, -60.0f, 60.0f, "%.0f");
+			changed |= ImGui::SliderFloat("Move sideways", &g.numberX, -200.0f, 200.0f, "%.0f");
+			changed |= ImGui::RadioButton("Centred", &g.numberAlign, 0);
+			ImGui::SameLine();
+			changed |= ImGui::RadioButton("Start at the icon##align", &g.numberAlign, 1);
+			ImGui::SameLine();
+			changed |= ImGui::RadioButton("End at the icon##align", &g.numberAlign, 2);
+			Hint("For a column: pick Start at the icon, move the text right with Move sideways and\nup beside the icon with Distance from the icon. The names then line up on their left edge.");
 			changed |= ImGui::Checkbox("Colour the numbers like their icon", &g.numberTint);
 			changed |= ImGui::Checkbox("Dark edge round the numbers", &g.numberEdge);
 			Hint("Easier to read over snow and sky.");

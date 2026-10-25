@@ -50,9 +50,13 @@ namespace Settings
 			return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 		}
 
+		// Pinned the first time it's asked (kPostLoad, game folder as the working folder).
+		// Worked out on every call, a plugin or dialog that moves the working folder later
+		// sent Save somewhere else, and the layout was gone after a restart (fuqdupd, 2.3.0).
 		std::filesystem::path PluginDir()
 		{
-			return std::filesystem::absolute("Data/SKSE/Plugins");
+			static const auto dir = std::filesystem::absolute("Data/SKSE/Plugins");
+			return dir;
 		}
 
 		std::wstring DefaultsPath() { return (PluginDir() / "NeedsWidget.ini").wstring(); }
@@ -84,11 +88,19 @@ namespace Settings
 			if (s.empty()) {
 				return a_fallback;
 			}
-			try {
-				return std::stof(s);
-			} catch (...) {
-				return a_fallback;
+			// Not stof: that follows the C locale, which another plugin can switch to one
+			// with a decimal comma. Files an older build wrote that way still read.
+			std::string ascii;
+			for (const wchar_t c : s) {
+				ascii.push_back(c == L',' ? '.' : c < 128 ? static_cast<char>(c) : '?');
 			}
+			float value = a_fallback;
+			const auto* first = ascii.data();
+			while (first < ascii.data() + ascii.size() && *first == '+') {
+				++first;
+			}
+			const auto [end, ec] = std::from_chars(first, ascii.data() + ascii.size(), value);
+			return ec == std::errc() && end != first ? value : a_fallback;
 		}
 
 		bool ReadBool(const std::wstring& a_file, const std::wstring& a_section, const wchar_t* a_key, bool a_fallback)
@@ -247,8 +259,9 @@ namespace Settings
 			g.pulseWorst = ReadBool(a_file, L"General", L"bPulseWorst", a_fallback.pulseWorst);
 			g.numbersAbove = ReadBool(a_file, L"General", L"bNumbersAbove", a_fallback.numbersAbove);
 			g.numberSize = std::clamp(ReadFloat(a_file, L"General", L"fNumberSize", a_fallback.numberSize), 50.0f, 400.0f);
-			g.numberGap = std::clamp(ReadFloat(a_file, L"General", L"fNumberGap", a_fallback.numberGap), -30.0f, 60.0f);
-			g.numberX = std::clamp(ReadFloat(a_file, L"General", L"fNumberX", a_fallback.numberX), -80.0f, 80.0f);
+			g.numberGap = std::clamp(ReadFloat(a_file, L"General", L"fNumberGap", a_fallback.numberGap), -60.0f, 60.0f);
+			g.numberAlign = std::clamp(static_cast<int>(ReadFloat(a_file, L"General", L"iNumberAlign", static_cast<float>(a_fallback.numberAlign))), 0, 2);
+			g.numberX = std::clamp(ReadFloat(a_file, L"General", L"fNumberX", a_fallback.numberX), -200.0f, 200.0f);
 			g.numberTint = ReadBool(a_file, L"General", L"bNumberTint", a_fallback.numberTint);
 			g.numberEdge = ReadBool(a_file, L"General", L"bNumberEdge", a_fallback.numberEdge);
 			g.numberShows = std::clamp(static_cast<int>(ReadFloat(a_file, L"General", L"iNumberShows", static_cast<float>(a_fallback.numberShows))), 0, 1);
@@ -316,14 +329,16 @@ namespace Settings
 
 		std::wstring Number(float a_value)
 		{
-			wchar_t buf[64]{};
-			swprintf_s(buf, L"%.3f", a_value);
-			return buf;
+			return std::format(L"{:.3f}", a_value);  // always a decimal point, whatever the locale
 		}
+
+		int writeFailures = 0;  // since the last Save or export started
 
 		void Write(const std::wstring& a_file, const std::wstring& a_section, const wchar_t* a_key, const std::wstring& a_value)
 		{
-			WritePrivateProfileStringW(a_section.c_str(), a_key, a_value.c_str(), a_file.c_str());
+			if (!WritePrivateProfileStringW(a_section.c_str(), a_key, a_value.c_str(), a_file.c_str()) && writeFailures++ == 0) {
+				logs::warn("could not write {} (Windows error {})", std::filesystem::path(a_file).string(), GetLastError());
+			}
 		}
 
 		void WriteGeneral(const std::wstring& a_file, const General& a_g)
@@ -336,6 +351,7 @@ namespace Settings
 			Write(a_file, L"General", L"fNumberSize", Number(a_g.numberSize));
 			Write(a_file, L"General", L"fNumberGap", Number(a_g.numberGap));
 			Write(a_file, L"General", L"fNumberX", Number(a_g.numberX));
+			Write(a_file, L"General", L"iNumberAlign", std::to_wstring(a_g.numberAlign));
 			Write(a_file, L"General", L"bNumberTint", a_g.numberTint ? L"1" : L"0");
 			Write(a_file, L"General", L"bNumberEdge", a_g.numberEdge ? L"1" : L"0");
 			Write(a_file, L"General", L"iNumberShows", std::to_wstring(a_g.numberShows));
@@ -464,10 +480,11 @@ namespace Settings
 			currentGeneral.perLine, currentGeneral.wrapBefore, currentGeneral.lineGap);
 	}
 
-	void Save()
+	bool Save()
 	{
 		std::scoped_lock l(lock);
 		const auto file = CustomPath();
+		writeFailures = 0;
 		std::error_code ec;
 		std::filesystem::remove(file, ec);  // start clean, so only what differs is written
 		if (ec) {
@@ -485,9 +502,14 @@ namespace Settings
 			WriteIcon(file, static_cast<Needs::Id>(id), current[id]);
 			++sections;
 		}
+		if (writeFailures > 0 || (sections > 0 && !std::filesystem::exists(file, ec))) {
+			logs::warn("settings NOT saved to {}: {} write(s) failed", std::filesystem::path(file).string(), writeFailures);
+			return false;
+		}
 		saved = current;
 		savedGeneral = currentGeneral;
-		logs::info("settings saved: {} section(s) differ from the defaults", sections);
+		logs::info("settings saved to {}: {} section(s) differ from the defaults", std::filesystem::path(file).string(), sections);
+		return true;
 	}
 
 	void ScanPresets()
@@ -541,6 +563,7 @@ namespace Settings
 			return {};
 		}
 		const auto file = path.wstring();
+		writeFailures = 0;
 		Write(file, L"Preset", L"sName", path.stem().wstring());
 		Write(file, L"Preset", L"sNote", L"Saved from the menu. Add who made it and which UI it is for.");
 		// Everything, not only what differs: a preset has to look the same whatever

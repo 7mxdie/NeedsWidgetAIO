@@ -175,7 +175,7 @@ bool HudLayer::SendStyle()
 		RE::GFxValue(static_cast<double>(c[0])), RE::GFxValue(static_cast<double>(c[1])), RE::GFxValue(static_cast<double>(c[2])),
 		RE::GFxValue(static_cast<double>(c[3])), RE::GFxValue(static_cast<double>(c[4])), RE::GFxValue(static_cast<double>(c[5])),
 		RE::GFxValue(general.pulseWorst) }) &&
-	       Call("_root.setNumbers", { RE::GFxValue(general.numberSize), RE::GFxValue(general.numberTint), RE::GFxValue(general.numberX), RE::GFxValue(general.numberEdge) });
+	       Call("_root.setNumbers", { RE::GFxValue(general.numberSize), RE::GFxValue(general.numberTint), RE::GFxValue(general.numberX), RE::GFxValue(general.numberEdge), RE::GFxValue(general.numberAlign) });
 }
 
 // Where an icon's centre sits along its row or column, in movie units, from the

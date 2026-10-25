@@ -118,15 +118,19 @@ function applyTint(i)
 // the text from its 16-unit base, tint colours it like its icon, dx nudges it
 // sideways in icon units. Its height is the dll's, through setStyle's labelY.
 // edge (2.3.0, phbd01): a dark edge round the text; missing means on.
-function setNumbers(sizePct, tint, dx, edge)
+// align (2.4.0, phbd01, for vertical HUDs): 0 or missing centred on the icon, 1 the
+// text starts at the icon's middle + dx, 2 it ends there. Names then line up.
+function setNumbers(sizePct, tint, dx, edge, align)
 {
 	numberStyle = {size: sizePct, tint: tint, dx: dx, edge: edge != false};
 	var k = sizePct / 100;
 	labelFormat.size = LABEL_SIZE * k;
+	labelFormat.align = align == 1 ? "left" : (align == 2 ? "right" : "center");
+	var left = align == 1 ? dx : (align == 2 ? dx - LABEL_W * k : LABEL_X * k + dx);
 	for (var i = 0; i < ICON_COUNT; i++)
 	{
 		var l = icons[i].clip.label;
-		l._x = LABEL_X * k + dx;
+		l._x = left;
 		l._width = LABEL_W * k;
 		l._height = LABEL_H * k;
 		l.setNewTextFormat(labelFormat);

@@ -3,12 +3,14 @@ includes("lib/commonlibsse-ng")
 
 -- set project constants
 set_project("NeedsWidget")
-set_version("2.3.0")
+set_version("2.4.0")
 set_languages("c++23")
 set_warnings("allextra")
 
--- add common rules
-add_rules("mode.debug", "mode.releasedbg")
+-- add common rules. mode.release because the build uses -m release: without it that
+-- mode had no rule, so no optimising and no NDEBUG, and CommonLib's asserts crashed
+-- players' games (gaodaxia1985, 2.3.0).
+add_rules("mode.debug", "mode.release", "mode.releasedbg")
 
 -- define targets
 target("NeedsWidget")

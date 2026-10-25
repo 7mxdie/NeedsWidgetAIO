@@ -102,16 +102,19 @@ namespace Needs
 			return a_spell && player && player->HasSpell(a_spell);
 		}
 
-		// Whether anything the player wears has the keyword, slot by slot.
+		// Whether anything the player wears has the keyword. Walks the inventory changes
+		// itself: CommonLib's GetWornArmor builds a map of the whole inventory and asserts
+		// when a save holds two entries for one item (gaodaxia1985's crash on load, 2.3.0).
 		bool PlayerWears(RE::BGSKeyword* a_keyword)
 		{
 			auto* player = RE::PlayerCharacter::GetSingleton();
-			if (!a_keyword || !player) {
+			auto* changes = player ? player->GetInventoryChanges(true) : nullptr;
+			if (!a_keyword || !changes || !changes->entryList) {
 				return false;
 			}
-			for (std::uint32_t bit = 0; bit < 32; ++bit) {
-				const auto slot = static_cast<RE::BGSBipedObjectForm::BipedObjectSlot>(1u << bit);
-				if (auto* armor = player->GetWornArmor(slot, true); armor && armor->HasKeyword(a_keyword)) {
+			for (const auto* entry : *changes->entryList) {
+				const auto* armor = entry && entry->object ? entry->object->As<RE::TESObjectARMO>() : nullptr;
+				if (armor && armor->HasKeyword(a_keyword) && entry->IsWorn()) {
 					return true;
 				}
 			}
@@ -382,7 +385,7 @@ namespace Needs
 		RE::SpellItem* iNeedSpell{ nullptr };  // iNeed's _SNPlayerSpell: the player loses it when iNeed is off
 
 		// --- Disease ---------------------------------------------------------------------
-		// Any spell of type Disease on the player (vanilla, the DLCs, Survival Mode, Last
+		// Any Disease spell running on the player (vanilla, the DLCs, Survival Mode, Last
 		// Seed, SunHelm's food poisoning) lights the icon. How bad comes from the mods
 		// that stage their diseases, on a common 1-5 scale:
 		//   Survival Mode - its stage 2 and 3 spells (the vanilla one stays as stage 1)
@@ -458,10 +461,25 @@ namespace Needs
 				int         count = 0;
 				const char* from = "Skyrim";
 				named.clear();
-				for (auto* spell : player->GetActorRuntimeData().addedSpells) {
-					if (!spell || spell->GetSpellType() != RE::MagicSystem::SpellType::kDisease) {
-						continue;
+				// The diseases whose effects are running on the player, as the Active Effects
+				// menu lists them. Not the added-spells list: with SunHelm and the Simonrim mods,
+				// Survival Mode's stage spells stay there doing nothing (a "Severe Rockjoint"
+				// nobody has, 2.3.0 bug reports), and SunHelm passes its stages on as a cast,
+				// which never lands in that list at all (Mirax).
+				std::vector<RE::SpellItem*> diseases;
+				auto* const                 target = player->AsMagicTarget();
+				if (auto* const effects = target ? target->GetActiveEffectList() : nullptr) {
+					for (auto* effect : *effects) {
+						if (!effect || effect->flags.any(RE::ActiveEffect::Flag::kInactive, RE::ActiveEffect::Flag::kDispelled)) {
+							continue;
+						}
+						auto* spell = effect->spell ? effect->spell->As<RE::SpellItem>() : nullptr;
+						if (spell && spell->GetSpellType() == RE::MagicSystem::SpellType::kDisease && std::ranges::find(diseases, spell) == diseases.end()) {
+							diseases.push_back(spell);
+						}
 					}
+				}
+				for (auto* spell : diseases) {
 					++count;
 					int         severity = 1;
 					const char* source = "Skyrim";

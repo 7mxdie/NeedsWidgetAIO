@@ -68,6 +68,8 @@ def probe_expect(bounds):
         "NWPROBE numbers x=-230 w=480 size=32 color=ff9966",
         "NWPROBE edge x=-232 dy=-2 text=75% color=0 on=true",
         "NWPROBE edgeoff on=false",
+        "NWPROBE alignleft x=40 align=left edge=left",
+        "NWPROBE alignright x=-280 align=right",
         "NWPROBE plain x=-120 w=240 size=16 color=ffffff",
         "NWPROBE corner x=0 y=720",
         "NWPROBE offset x=588.5 y=385",

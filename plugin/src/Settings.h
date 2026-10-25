@@ -83,6 +83,7 @@ namespace Settings
 		bool        numberTint{ false };  // colour the number like its icon
 		bool        numberEdge{ true };   // a dark edge round the number (phbd01, 2.3.0)
 		int         numberShows{ 0 };     // 0 the percent, 1 the stage's name (TEST10)
+		int         numberAlign{ 0 };     // 0 centred under the icon, 1 starts at it, 2 ends at it (phbd01, vertical HUDs)
 
 		// TEST10 (Tom: "All but 5"). Fade the widget out once nothing has changed for
 		// fadeAfter seconds, back in on any change; keepBad keeps it up while a need
@@ -169,7 +170,7 @@ namespace Settings
 	};
 
 	void    Load();
-	void    Save();                           // writes only what differs from the defaults
+	bool    Save();                           // writes only what differs from the defaults; false if the file couldn't be written
 	void    ScanPresets();                    // reads the Presets folder again
 	std::vector<Preset> GetPresets();
 	void    ApplyPreset(const Preset& a_preset);  // like moving the sliders: Save makes it stick

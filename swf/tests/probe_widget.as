@@ -165,6 +165,11 @@ function stepIcon()
 	trace("NWPROBE edge x=" + c.edge0._x + " dy=" + (c.edge0._y - c.label._y) + " text=" + c.edge0.text + " color=" + c.edge0.textColor.toString(16) + " on=" + c.edge0._visible);
 	w.setNumbers(200, true, 10, false);
 	trace("NWPROBE edgeoff on=" + c.edge0._visible);
+	// Lined up for a column (2.4.0): starts at the icon + dx, or ends there.
+	w.setNumbers(100, false, 40, true, 1);
+	trace("NWPROBE alignleft x=" + c.label._x + " align=" + c.label.getTextFormat().align + " edge=" + c.edge0.getTextFormat().align);
+	w.setNumbers(100, false, -40, true, 2);
+	trace("NWPROBE alignright x=" + c.label._x + " align=" + c.label.getTextFormat().align);
 	w.setNumbers(100, false, 0);
 	trace("NWPROBE plain x=" + c.label._x + " w=" + c.label._width + " size=" + c.label.getTextFormat().size + " color=" + c.label.textColor.toString(16));
 	w.setLayout(1, 0, 100, 100, 100, false);
