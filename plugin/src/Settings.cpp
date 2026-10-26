@@ -334,11 +334,84 @@ namespace Settings
 
 		int writeFailures = 0;  // since the last Save or export started
 
+		// Save builds the whole file here and writes it in one go. Through
+		// WritePrivateProfileString, every write said it worked and yet no file was there
+		// (2.3.0 and 2.4.0, on Windows and under Proton alike), while a preset export in
+		// the same session worked. The custom file is the one read at start-up and then
+		// deleted by Save, so something caching the profile functions in game is the
+		// likely cause; outside the game the same calls work. This doesn't use them.
+		struct PendingFile
+		{
+			std::wstring                                                                         file;
+			std::vector<std::pair<std::wstring, std::vector<std::pair<std::wstring, std::wstring>>>> sections;
+		};
+		std::optional<PendingFile> pending;
+
 		void Write(const std::wstring& a_file, const std::wstring& a_section, const wchar_t* a_key, const std::wstring& a_value)
 		{
+			if (pending && pending->file == a_file) {
+				auto section = std::ranges::find_if(pending->sections, [&](const auto& s) { return _wcsicmp(s.first.c_str(), a_section.c_str()) == 0; });
+				if (section == pending->sections.end()) {
+					section = pending->sections.insert(pending->sections.end(), { a_section, {} });
+				}
+				auto key = std::ranges::find_if(section->second, [&](const auto& k) { return _wcsicmp(k.first.c_str(), a_key) == 0; });
+				if (key == section->second.end()) {
+					section->second.emplace_back(a_key, a_value);
+				} else {
+					key->second = a_value;
+				}
+				return;
+			}
 			if (!WritePrivateProfileStringW(a_section.c_str(), a_key, a_value.c_str(), a_file.c_str()) && writeFailures++ == 0) {
 				logs::warn("could not write {} (Windows error {})", std::filesystem::path(a_file).string(), GetLastError());
 			}
+		}
+
+		// Plain ANSI text, as WritePrivateProfileString itself writes a new file, so
+		// GetPrivateProfileString reads it back the same. Written to a .tmp first and then
+		// swapped in, so a failed write never leaves half a file behind.
+		bool WritePending()
+		{
+			std::wstring text;
+			for (const auto& [section, keys] : pending->sections) {
+				text += std::format(L"[{}]\r\n", section);
+				for (const auto& [key, value] : keys) {
+					text += std::format(L"{}={}\r\n", key, value);
+				}
+				text += L"\r\n";
+			}
+			std::string bytes;
+			if (!text.empty()) {
+				const int n = WideCharToMultiByte(CP_ACP, 0, text.c_str(), static_cast<int>(text.size()), nullptr, 0, nullptr, nullptr);
+				bytes.resize(static_cast<std::size_t>(n));
+				WideCharToMultiByte(CP_ACP, 0, text.c_str(), static_cast<int>(text.size()), bytes.data(), n, nullptr, nullptr);
+			}
+			const std::filesystem::path target(pending->file);
+			auto                        temp = target;
+			temp += L".tmp";
+			{
+				std::ofstream out(temp, std::ios::binary | std::ios::trunc);
+				out.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+				out.close();
+				if (!out) {
+					logs::warn("could not write {}", temp.string());
+					return false;
+				}
+			}
+			std::error_code ec;
+			std::filesystem::rename(temp, target, ec);
+			if (ec) {
+				logs::warn("could not put {} in place: {}", target.string(), ec.message());
+				std::filesystem::remove(temp, ec);
+				return false;
+			}
+			std::ifstream in(target, std::ios::binary);
+			const std::string back((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+			if (back != bytes) {
+				logs::warn("{} reads back different from what was written ({} of {} bytes)", target.string(), back.size(), bytes.size());
+				return false;
+			}
+			return true;
 		}
 
 		void WriteGeneral(const std::wstring& a_file, const General& a_g)
@@ -485,11 +558,7 @@ namespace Settings
 		std::scoped_lock l(lock);
 		const auto file = CustomPath();
 		writeFailures = 0;
-		std::error_code ec;
-		std::filesystem::remove(file, ec);  // start clean, so only what differs is written
-		if (ec) {
-			logs::warn("could not clear {}: {}", std::filesystem::path(file).string(), ec.message());
-		}
+		pending.emplace(PendingFile{ file, {} });  // a whole new file, so only what differs is in it
 		int sections = 0;
 		if (!(currentGeneral == defaultGeneral)) {
 			WriteGeneral(file, currentGeneral);
@@ -502,8 +571,20 @@ namespace Settings
 			WriteIcon(file, static_cast<Needs::Id>(id), current[id]);
 			++sections;
 		}
-		if (writeFailures > 0 || (sections > 0 && !std::filesystem::exists(file, ec))) {
-			logs::warn("settings NOT saved to {}: {} write(s) failed", std::filesystem::path(file).string(), writeFailures);
+		bool written = true;
+		if (sections > 0) {
+			written = WritePending();
+		} else {
+			std::error_code ec;
+			std::filesystem::remove(file, ec);  // all defaults: no file at all
+			if (ec) {
+				logs::warn("could not clear {}: {}", std::filesystem::path(file).string(), ec.message());
+				written = false;
+			}
+		}
+		pending.reset();
+		if (!written) {
+			logs::warn("settings NOT saved to {}", std::filesystem::path(file).string());
 			return false;
 		}
 		saved = current;

@@ -42,7 +42,7 @@ def probe_expect(bounds):
     # What the probe must print. Tints use colours whose percentages are whole
     # numbers, so storage rounding can't move them.
     return [
-        "NWPROBE start shown=false icons=34 ext=true",
+        "NWPROBE start shown=false icons=74 ext=true",
         "NWPROBE art 0 icons/ bounds=" + bounds["hunger"],
         "NWPROBE art 1 icons/ bounds=" + bounds["cold"],
         "NWPROBE art 2 icons/ bounds=" + bounds["fatigue"],
@@ -53,18 +53,18 @@ def probe_expect(bounds):
         "NWPROBE art 7 icons/ bounds=" + bounds["wetness"],
         "NWPROBE art 8 icons/ bounds=" + bounds["vitality"],
         "NWPROBE art 9 icons/ bounds=" + bounds["disease"],
-    ] + ["NWPROBE art %d none" % k for k in range(10, 34)] + [
-        "NWPROBE frame ring 34 icons/ bounds=" + bounds["frame_ring"] + " x=-32 y=-32",
+    ] + ["NWPROBE art %d none" % k for k in range(10, 74)] + [
+        "NWPROBE frame ring 74 icons/ bounds=" + bounds["frame_ring"] + " x=-32 y=-32",
         "NWPROBE layout x=640 y=360 xs=150 a=80 label=true labelY=31",
         "NWPROBE place xs=56.25 x=-18 y=-18",
         "NWPROBE half visible=true text=50% meter=0,-28.4,28.4,28.4 tint=100,40,20",
         "NWPROBE quarter meter=0,-28.4,28.4,0 tint=80,20,0",
         "NWPROBE pulse dips=true peaks=true meterInStep=true frameStill=true",
         "NWPROBE empty meterW=0 tint=100,100,100 a=100",
-        "NWPROBE frame bar 68 icons/ bounds=" + bounds["frame_bar"],
+        "NWPROBE frame bar 148 icons/ bounds=" + bounds["frame_bar"],
         "NWPROBE bar meter=-16.2,21.8,0,22.6 place xs=59.375 x=-19 y=-23 labelY=25",
         "NWPROBE nopulse min=100",
-        "NWPROBE icon frames=102 frame=none frameW=0 meterW=0 tint=100,100,100",
+        "NWPROBE icon frames=222 frame=none frameW=0 meterW=0 tint=100,100,100",
         "NWPROBE numbers x=-230 w=480 size=32 color=ff9966",
         "NWPROBE edge x=-232 dy=-2 text=75% color=0 on=true",
         "NWPROBE edgeoff on=false",

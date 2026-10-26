@@ -434,9 +434,12 @@ _global.gfxExtensions = true;
 var BASE_W = 1280;
 var BASE_H = 720;
 var areaLogged = "";
-// The ten built-in needs, then 24 extra slots (Needs::kCount in the dll is 34 too).
-var ICON_NAMES = ["hunger", "cold", "fatigue", "stress", "dirt", "encumbrance", "thirst", "wetness", "vitality", "disease",
-	"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""];
+// The ten built-in needs, then 64 extra slots (Needs::kCount in the dll is 74 too).
+var ICON_NAMES = ["hunger", "cold", "fatigue", "stress", "dirt", "encumbrance", "thirst", "wetness", "vitality", "disease"];
+for (var extraSlot = 0; extraSlot < 64; extraSlot++)
+{
+	ICON_NAMES.push("");
+}
 var ICON_COUNT = ICON_NAMES.length;
 var ART_PATHS = ["icons/", "NeedsWidget/icons/", "Interface/NeedsWidget/icons/"];
 var ART_CANVAS = 64;

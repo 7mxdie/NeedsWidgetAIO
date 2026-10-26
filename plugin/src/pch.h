@@ -11,8 +11,10 @@
 #include <charconv>
 #include <cmath>
 #include <filesystem>
+#include <fstream>
 #include <functional>
 #include <mutex>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>

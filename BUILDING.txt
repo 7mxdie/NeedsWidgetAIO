@@ -1,4 +1,4 @@
-Needs Widget AIO 2.4.0 - source code
+Needs Widget AIO 2.4.1 - source code
 Copyright (C) 2026 mxdie
 
 Licensed under the GNU General Public License v3.0, see LICENSE.txt.

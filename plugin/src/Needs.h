@@ -36,7 +36,7 @@ namespace Needs
 		kVitality,
 		kDisease,
 		kBuiltInCount,
-		kCount = kBuiltInCount + 24  // widget.as makes this many icons too (ICON_COUNT)
+		kCount = kBuiltInCount + 64  // widget.as makes this many icons too (ICON_COUNT)
 	};
 
 	constexpr bool IsExtra(Id a_id) { return a_id >= kBuiltInCount && a_id < kCount; }
