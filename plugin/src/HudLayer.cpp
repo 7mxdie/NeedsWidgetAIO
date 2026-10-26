@@ -135,6 +135,31 @@ bool HudLayer::Call(const char* a_function, std::initializer_list<RE::GFxValue> 
 	return uiMovie && uiMovie->Invoke(a_function, nullptr, a_args.begin(), static_cast<std::uint32_t>(a_args.size()));
 }
 
+std::vector<HudLayer::Spot> HudLayer::Spots()
+{
+	std::scoped_lock l(spotLock);
+	return spots;
+}
+
+void HudLayer::UpdateSpots()
+{
+	std::vector<Spot> found;
+	RE::GFxValue      answer;
+	if (watchSpots && uiMovie && uiMovie->Invoke("_root.spots", &answer, nullptr, 0) && answer.IsString()) {
+		// "id,x,y,halfW,halfH;" for each icon showing (widget.as, spots).
+		std::istringstream in(answer.GetString());
+		std::string        item;
+		while (std::getline(in, item, ';')) {
+			Spot s;
+			if (sscanf_s(item.c_str(), "%u,%f,%f,%f,%f", &s.id, &s.x, &s.y, &s.halfW, &s.halfH) == 5 && s.id < Needs::kCount) {
+				found.push_back(s);
+			}
+		}
+	}
+	std::scoped_lock l(spotLock);
+	spots = std::move(found);
+}
+
 bool HudLayer::SendStyle()
 {
 	const auto general = Settings::GetGeneral();
@@ -320,6 +345,7 @@ void HudLayer::AdvanceMovie(float a_interval, std::uint32_t a_currentTime)
 			fadeTarget = target;
 		}
 	}
+	UpdateSpots();
 
 	sinceValueUpdate += a_interval;
 	if (sinceValueUpdate < VALUE_INTERVAL) {

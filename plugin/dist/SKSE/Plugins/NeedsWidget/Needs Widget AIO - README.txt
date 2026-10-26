@@ -1,4 +1,4 @@
-Needs Widget AIO 2.4.1
+Needs Widget AIO 2.5.0
 by mxdie (Tom)
 
 Shows your needs as icons on the HUD, from whichever needs mods you have:
@@ -20,6 +20,8 @@ SKSE/Plugins/NeedsWidget/Icons/. They show in the same widget and menu.
 
 Settings are in the SKSE Menu Framework menu under "Needs Widget AIO".
 Saving there writes Data/SKSE/Plugins/NeedsWidget_Custom.ini.
+"Drag icons on screen" (its own tab, and at the top of the pages) lets you
+move and resize the icons with the mouse.
 
 Needs:
   SKSE, Address Library for SKSE Plugins, SKSE Menu Framework

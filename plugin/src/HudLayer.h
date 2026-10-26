@@ -20,6 +20,21 @@ public:
 
 	void AdvanceMovie(float a_interval, std::uint32_t a_currentTime) override;
 
+	// Where an icon showing is: its centre and half its size, as shares of the screen.
+	struct Spot
+	{
+		std::uint32_t id{ 0 };
+		float         x{ 0.0f };
+		float         y{ 0.0f };
+		float         halfW{ 0.0f };
+		float         halfH{ 0.0f };
+	};
+
+	// While the settings' drag screen is open the widget is asked every frame where
+	// its icons are (the UI thread), and the drag screen reads it (the render thread).
+	static void              WatchSpots(bool a_on) { watchSpots = a_on; }
+	static std::vector<Spot> Spots();
+
 private:
 	// What the widget was last told about one icon, so only changes are sent.
 	struct Sent
@@ -52,4 +67,10 @@ private:
 	float                           sinceChange{ 0.0f };  // seconds since any icon came, went or changed stage
 	bool                            keyHidden{ false };   // hidden by the hotkey
 	float                           fadeTarget{ -1.0f };  // what the widget was last told to fade to
+
+	void UpdateSpots();
+
+	static inline std::atomic<bool> watchSpots{ false };
+	static inline std::mutex        spotLock;
+	static inline std::vector<Spot> spots;
 };

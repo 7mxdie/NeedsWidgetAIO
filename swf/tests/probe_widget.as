@@ -179,8 +179,13 @@ function stepIcon()
 	w.setLayout(1, 50, 50, 100, 100, false, -51.5, 25);
 	trace("NWPROBE offset x=" + c1._x + " y=" + c1._y);
 	w.setIcon(0, false, 0.5, 3, "50%");
+	// The drag screen's handles (2.4.1): only icons showing, as shares of the screen.
+	w.setIcon(1, true, 0.5, 3, "50%");
+	trace("NWPROBE spots " + w.spots());
+	w.setIcon(1, false, 0.5, 3, "50%");
 	w.setShown(false);
 	trace("NWPROBE hidden icon=" + c._visible + " shown=" + w.needs._visible);
+	trace("NWPROBE spots hidden=[" + w.spots() + "]");
 	stepFx();
 }
 

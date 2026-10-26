@@ -339,6 +339,29 @@ function setLayout(i, xPct, yPct, sizePct, alphaPct, showNumber, dx, dy)
 	syncEdge(i);
 }
 
+// Where each icon on screen is, as shares of the screen: "id,x,y,halfW,halfH;" for
+// each one showing, x and y its centre. The dll asks every frame while the
+// settings' drag screen is open, and puts a handle there.
+function spots()
+{
+	var out = "";
+	if (!needs._visible)
+	{
+		return out;
+	}
+	var a = visibleArea();
+	for (var i = 0; i < ICON_COUNT; i++)
+	{
+		var c = icons[i].clip;
+		if (c._visible)
+		{
+			var half = ART_CANVAS / 2 * c._xscale / 100;
+			out += i + "," + (c._x - a.x) / a.w + "," + (c._y - a.y) / a.h + "," + half / a.w + "," + half / a.h + ";";
+		}
+	}
+	return out;
+}
+
 function setIcon(i, visible, fraction, stage, label)
 {
 	var o = icons[i];
