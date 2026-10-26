@@ -1735,7 +1735,7 @@ namespace Needs
 				};
 			} else if (a_def.type == "minineeds") {
 				// MiniNeeds (mndController on quest 0x12C4) keeps when you last went and how many
-				// hours you can last; the percent is SL Widgets' own fix of MiniNeeds' formula.
+				// hours you can last; the percent is the one mndController hands other mods.
 				auto* quest = FindQuest(std::format("{} quest 0012C4", a_icon.name), 0x0012C4, in);
 				auto* timeScale = RE::TESForm::LookupByID<RE::TESGlobal>(0x00003A);
 				if (!quest || !timeScale) {
@@ -1763,7 +1763,7 @@ namespace Needs
 				};
 			} else if (a_def.type == "slove") {
 				// SLO VE: willpower 0-100 as its next scene will find it, worked out from the
-				// StorageUtil values it keeps for other mods, the way SL Widgets does it.
+				// StorageUtil values it keeps for other mods, the way its next scene start does it.
 				std::vector<std::shared_ptr<PapyrusCall>> calls;
 				const auto stored = [&](std::string a_key, std::optional<std::int32_t> a_int) {
 					PapyrusRequest r;
