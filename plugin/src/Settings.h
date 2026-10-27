@@ -84,6 +84,13 @@ namespace Settings
 		bool        numberEdge{ true };   // a dark edge round the number (phbd01, 2.3.0)
 		int         numberShows{ 0 };     // 0 the percent, 1 the stage's name (TEST10)
 		int         numberAlign{ 0 };     // 0 centred under the icon, 1 starts at it, 2 ends at it (phbd01, vertical HUDs)
+		// HjalmarSeavuulf, 2026-10-27 (sight): the numbers' font, one of the game's own
+		// (fontconfig.txt names, so a font mod still applies), and their letter case.
+		int         numberFont{ 0 };      // 0 medium (as before), 1 bold, 2 light, 3 plain (the console's), 4 book, 5 handwritten
+		int         numberCase{ 0 };      // 0 as written, 1 lower case, 2 upper case
+		// Aupronoch, 2026-10-27: the meter shows what's left and drains as a need gets
+		// worse, instead of filling. The percent follows it.
+		bool        meterDrains{ false };
 
 		// TEST10 (Tom: "All but 5"). Fade the widget out once nothing has changed for
 		// fadeAfter seconds, back in on any change; keepBad keeps it up while a need

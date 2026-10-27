@@ -43,6 +43,7 @@ ICONS = {
     "lantern": "delapouite_old-lantern",
     "wounds": "lorc_bandaged",
     "injury": "lorc_broken-bone",
+    "vampire": "delapouite_vampire-dracula",  # Claude, 2026-10-27 (Raynor1511), for Tom to confirm
 }
 FIT = 52.0            # the longer side of every glyph, in canvas units (canvas is 64)
 CENTRE = 32.0

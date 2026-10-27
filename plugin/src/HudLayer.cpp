@@ -28,6 +28,10 @@ namespace
 	constexpr double FADE_IN_MS = 250.0;
 	constexpr double FADE_OUT_MS = 1000.0;
 	constexpr int    BAD_STAGE = 4;          // "Stay on screen" counts stages from here up
+	// The numbers' fonts, by General::numberFont. The game's own names from fontconfig.txt,
+	// so whatever a font mod maps them to is what shows.
+	constexpr std::array NUMBER_FONTS = { "$EverywhereMediumFont", "$EverywhereBoldFont", "$EverywhereFont",
+		"$ConsoleFont", "$SkyrimBooks", "$HandwrittenFont" };
 
 	// A loading screen (a door, fast travel) can close menus like ours, so the
 	// widget disappeared after Tom left the starting room in TEST4. STB Widgets
@@ -200,7 +204,8 @@ bool HudLayer::SendStyle()
 		RE::GFxValue(static_cast<double>(c[0])), RE::GFxValue(static_cast<double>(c[1])), RE::GFxValue(static_cast<double>(c[2])),
 		RE::GFxValue(static_cast<double>(c[3])), RE::GFxValue(static_cast<double>(c[4])), RE::GFxValue(static_cast<double>(c[5])),
 		RE::GFxValue(general.pulseWorst) }) &&
-	       Call("_root.setNumbers", { RE::GFxValue(general.numberSize), RE::GFxValue(general.numberTint), RE::GFxValue(general.numberX), RE::GFxValue(general.numberEdge), RE::GFxValue(general.numberAlign) });
+	       Call("_root.setNumbers", { RE::GFxValue(general.numberSize), RE::GFxValue(general.numberTint), RE::GFxValue(general.numberX), RE::GFxValue(general.numberEdge), RE::GFxValue(general.numberAlign),
+									RE::GFxValue(NUMBER_FONTS[std::clamp(general.numberFont, 0, 5)]) });
 }
 
 // Where an icon's centre sits along its row or column, in movie units, from the
@@ -353,6 +358,8 @@ void HudLayer::AdvanceMovie(float a_interval, std::uint32_t a_currentTime)
 	}
 	sinceValueUpdate = 0.0f;
 	const auto numberShows = Settings::GetGeneral().numberShows;
+	const auto numberCase = Settings::GetGeneral().numberCase;
+	const auto meterDrains = Settings::GetGeneral().meterDrains;
 	const auto flashWorse = Settings::GetGeneral().flashWorse;
 	std::array<Sent, Needs::kCount> next{};
 	for (std::uint32_t id = 0; id < Needs::kCount; ++id) {
@@ -374,14 +381,25 @@ void HudLayer::AdvanceMovie(float a_interval, std::uint32_t a_currentTime)
 			layoutPending[id] = true;
 		}
 		s.visible = live || faded;
-		s.fraction = r.available ? std::round(std::clamp(r.fraction, 0.0f, 1.0f) * 500.0f) / 500.0f : 0.0f;
+		const float meter = meterDrains ? 1.0f - std::clamp(r.fraction, 0.0f, 1.0f) : std::clamp(r.fraction, 0.0f, 1.0f);
+		s.fraction = r.available ? std::round(meter * 500.0f) / 500.0f : 0.0f;
 		s.stage = r.available ? r.stage : 0;
 		if (!r.available) {
 			s.label = "-";
 		} else if (numberShows == 1 && r.stageName) {
 			s.label = r.stageName;
 		} else {
-			s.label = std::format("{:.0f}%", r.fraction * 100.0f);
+			s.label = std::format("{:.0f}%", meter * 100.0f);
+		}
+		if (numberCase != 0) {
+			// ASCII only: a stage name in another language keeps its other letters as they are.
+			for (auto& c : s.label) {
+				if (c >= 'A' && c <= 'Z' && numberCase == 1) {
+					c = static_cast<char>(c - 'A' + 'a');
+				} else if (c >= 'a' && c <= 'z' && numberCase == 2) {
+					c = static_cast<char>(c - 'a' + 'A');
+				}
+			}
 		}
 		next[id] = s;
 

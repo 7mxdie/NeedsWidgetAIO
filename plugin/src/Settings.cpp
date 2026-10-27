@@ -265,6 +265,9 @@ namespace Settings
 			g.numberTint = ReadBool(a_file, L"General", L"bNumberTint", a_fallback.numberTint);
 			g.numberEdge = ReadBool(a_file, L"General", L"bNumberEdge", a_fallback.numberEdge);
 			g.numberShows = std::clamp(static_cast<int>(ReadFloat(a_file, L"General", L"iNumberShows", static_cast<float>(a_fallback.numberShows))), 0, 1);
+			g.numberFont = std::clamp(static_cast<int>(ReadFloat(a_file, L"General", L"iNumberFont", static_cast<float>(a_fallback.numberFont))), 0, 5);
+			g.numberCase = std::clamp(static_cast<int>(ReadFloat(a_file, L"General", L"iNumberCase", static_cast<float>(a_fallback.numberCase))), 0, 2);
+			g.meterDrains = ReadBool(a_file, L"General", L"bMeterDrains", a_fallback.meterDrains);
 			g.fadeWhenStill = ReadBool(a_file, L"General", L"bFadeWhenStill", a_fallback.fadeWhenStill);
 			g.fadeAfter = std::clamp(ReadFloat(a_file, L"General", L"fFadeAfter", a_fallback.fadeAfter), 2.0f, 120.0f);
 			g.keepBad = ReadBool(a_file, L"General", L"bKeepBadShown", a_fallback.keepBad);
@@ -428,6 +431,9 @@ namespace Settings
 			Write(a_file, L"General", L"bNumberTint", a_g.numberTint ? L"1" : L"0");
 			Write(a_file, L"General", L"bNumberEdge", a_g.numberEdge ? L"1" : L"0");
 			Write(a_file, L"General", L"iNumberShows", std::to_wstring(a_g.numberShows));
+			Write(a_file, L"General", L"iNumberFont", std::to_wstring(a_g.numberFont));
+			Write(a_file, L"General", L"iNumberCase", std::to_wstring(a_g.numberCase));
+			Write(a_file, L"General", L"bMeterDrains", a_g.meterDrains ? L"1" : L"0");
 			Write(a_file, L"General", L"bFadeWhenStill", a_g.fadeWhenStill ? L"1" : L"0");
 			Write(a_file, L"General", L"fFadeAfter", Number(a_g.fadeAfter));
 			Write(a_file, L"General", L"bKeepBadShown", a_g.keepBad ? L"1" : L"0");

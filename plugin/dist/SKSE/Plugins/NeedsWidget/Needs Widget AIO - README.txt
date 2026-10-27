@@ -1,4 +1,4 @@
-Needs Widget AIO 2.5.0
+Needs Widget AIO 2.6.0
 by mxdie (Tom)
 
 Shows your needs as icons on the HUD, from whichever needs mods you have:
@@ -8,12 +8,13 @@ Immersive Needs, Realistic Needs and Diseases, Super Simple Needs, Frostbite and
 Drink It Off, plus encumbrance from the game.
 A need with no mod behind it just doesn't show.
 
-It also comes with four icons that aren't needs:
+It also comes with five icons that aren't needs:
   Light Level   how bright it is where you stand. From the game itself, so it's off
                 until you turn it on in the menu.
   Lantern Fuel  Chesko's Wearable Lanterns oil or torchbug pollen, when fuel is on.
   Wounds        how badly hurt you are, from Wounds.
   Injury        Blade & Blunt's injuries (Starfrost's fourth need).
+  Vampire       your vampire stage, 1 to 4. Hidden unless you're a vampire.
 
 Other mods can add icons of their own, one ini file each in
 SKSE/Plugins/NeedsWidget/Icons/. They show in the same widget and menu.
@@ -53,6 +54,7 @@ widget can tint them, and given a soft dark edge.
   Lantern Fuel    Old lantern             by Delapouite  https://game-icons.net/1x1/delapouite/old-lantern.html
   Wounds          Bandaged                by Lorc        https://game-icons.net/1x1/lorc/bandaged.html
   Injury          Broken bone             by Lorc        https://game-icons.net/1x1/lorc/broken-bone.html
+  Vampire         Vampire Dracula         by Delapouite  https://game-icons.net/1x1/delapouite/vampire-dracula.html
 
 
 CODE

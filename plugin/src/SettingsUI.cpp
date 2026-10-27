@@ -594,6 +594,8 @@ namespace SettingsUI
 			ImGui::SameLine();
 			changed |= ImGui::RadioButton("Icon only", &look, 2);
 			changed |= ImGui::Checkbox("Colour the icons as needs get worse", &g.tintArt);
+			changed |= ImGui::Checkbox("Meters drain as needs get worse", &g.meterDrains);
+			Hint("Off: a meter fills up as a need gets worse. On: it starts full and empties,\nand the percent counts down with it.");
 			ImGui::SeparatorText("Colours");
 			changed |= ImGui::RadioButton("Bone to red", &colors, 0);
 			ImGui::SameLine();
@@ -714,6 +716,15 @@ namespace SettingsUI
 			changed |= ImGui::Checkbox("Colour the numbers like their icon", &g.numberTint);
 			changed |= ImGui::Checkbox("Dark edge round the numbers", &g.numberEdge);
 			Hint("Easier to read over snow and sky.");
+			static constexpr const char* FONTS[] = { "Medium (default)", "Bold", "Light", "Plain", "Book", "Handwritten" };
+			changed |= ImGui::Combo("Font", &g.numberFont, FONTS, static_cast<int>(std::size(FONTS)));
+			Hint("The game's own fonts, so a font mod changes these too. Plain is the console's\nfont, usually the clearest. Bold is easier to read than Medium at small sizes.");
+			changed |= ImGui::RadioButton("As written", &g.numberCase, 0);
+			ImGui::SameLine();
+			changed |= ImGui::RadioButton("lower case", &g.numberCase, 1);
+			ImGui::SameLine();
+			changed |= ImGui::RadioButton("UPPER CASE", &g.numberCase, 2);
+			Hint("For stage names. Some fonts only have capitals, so lower case shows no change in those:\ntry Plain or Book with it.");
 			g.numbersAbove = above == 1;
 			return changed;
 		}
