@@ -29,9 +29,9 @@ import zipfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 ICONS = os.path.join(HERE, "swf", "build", "Interface", "NeedsWidget", "icons")
 PICTURES = ["hunger", "cold", "fatigue", "stress", "dirt", "encumbrance", "thirst", "wetness", "vitality", "disease",
-            "light", "lantern", "wounds", "injury", "vampire", "frame_ring", "frame_bar"]
+            "light", "lantern", "wounds", "injury", "vampire", "magicdebuffs", "lute", "flute", "drum", "frame_ring", "frame_bar"]
 # Extra icons the main mod ships (docs/EXTRA-ICONS.md); their art is in PICTURES.
-EXTRA_ICONS = ["Light Level", "Lantern Fuel", "Wounds", "Injury", "Vampire"]
+EXTRA_ICONS = ["Light Level", "Lantern Fuel", "Wounds", "Injury", "Vampire", "Magic Debuffs", "Bard - Lute", "Bard - Flute", "Bard - Drum"]
 FILES = {
     "SKSE/Plugins/NeedsWidget.dll": os.path.join(HERE, "plugin", "build", "windows", "x64", "release", "NeedsWidget.dll"),
     "SKSE/Plugins/NeedsWidget.ini": os.path.join(HERE, "plugin", "dist", "SKSE", "Plugins", "NeedsWidget.ini"),

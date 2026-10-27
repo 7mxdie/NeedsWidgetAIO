@@ -31,7 +31,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ART_DIR = os.path.join(HERE, "art")
 OUT_DIR = os.path.join(HERE, "build", "Interface", "NeedsWidget", "icons")
 NAMES = ["hunger", "cold", "fatigue", "stress", "dirt", "encumbrance", "thirst", "wetness", "vitality", "disease",
-         "light", "lantern", "wounds", "injury", "vampire"]  # the last five are the shipped extra icons' art
+         "light", "lantern", "wounds", "injury", "vampire", "magicdebuffs", "lute", "flute", "drum"]  # from light on: the shipped extra icons' art are the shipped extra icons' art
 CANVAS = 64
 TWIPS = 20
 OFFWHITE = (236, 233, 226)

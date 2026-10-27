@@ -31,6 +31,7 @@ namespace Extras
 		std::vector<std::pair<std::uint32_t, float>> spells;  // sSpells (Spells): local form ID : value
 		std::vector<std::pair<std::uint32_t, float>> wornKeywords;  // sWornKeywords (Spells): keywords on what the player wears
 		std::vector<std::pair<std::uint32_t, float>> effects;       // sEffects (MagicEffect): magic effects on the player
+		std::vector<std::pair<std::uint32_t, float>> effectKeywords;  // sEffectKeywords (MagicEffect, 2.6.0): a keyword on any effect on the player
 		std::vector<std::string> keys;        // sKey split on , (StorageFloat): the values add up
 		bool                     noActor{ false };  // bNoActor (StorageFloat): stored on None, not the player
 		bool                     passPlayer{ true };  // bPassPlayer

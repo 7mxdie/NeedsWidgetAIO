@@ -161,6 +161,7 @@ namespace Extras
 			s.spells = idValues(L"sSpells");
 			s.wornKeywords = idValues(L"sWornKeywords");
 			s.effects = idValues(L"sEffects");
+			s.effectKeywords = idValues(L"sEffectKeywords");
 			s.keys = Split(s.key, ',');
 			s.noActor = ReadFloat(a_file, section, L"bNoActor").value_or(0.0f) != 0.0f;
 			s.passPlayer = ReadFloat(a_file, section, L"bPassPlayer").value_or(1.0f) != 0.0f;
@@ -242,8 +243,8 @@ namespace Extras
 					problem = "a Spells source needs sSpells or sWornKeywords, and sPlugin";
 				}
 			} else if (s.type == "magiceffect") {
-				if (s.effects.empty() || s.plugins.empty()) {
-					problem = "a MagicEffect source needs sEffects and sPlugin";
+				if ((s.effects.empty() && s.effectKeywords.empty()) || s.plugins.empty()) {
+					problem = "a MagicEffect source needs sEffects or sEffectKeywords, and sPlugin";
 				}
 			} else if (s.type == "storagefloat") {
 				if (s.keys.empty()) {

@@ -495,6 +495,21 @@ namespace Needs
 							source = "Last Seed";
 						}
 					}
+					// A disease no list above knows: go by the stage word its name starts with.
+					// Wildlander's stages are Basic, Acute and Severe ("Acute Witbane", Mirax
+					// 2.5.0); Survival Mode's own Severe and Crippling are matched above already.
+					if (severity == 1 && std::string_view(source) == "Skyrim") {
+						const std::string_view name = spell->GetName() ? spell->GetName() : "";
+						constexpr std::array<std::pair<std::string_view, int>, 6> WORDS{ {
+							{ "Mild ", 1 }, { "Basic ", 1 }, { "Moderate ", 2 }, { "Acute ", 3 }, { "Severe ", 4 }, { "Crippling ", 5 },
+						} };
+						for (const auto& [word, sev] : WORDS) {
+							if (name.starts_with(word)) {
+								severity = sev;
+								source = "its name";
+							}
+						}
+					}
 					if (severity > worst || named.empty()) {
 						worst = (std::max)(worst, severity);
 						named = spell->GetName();
@@ -1682,15 +1697,32 @@ namespace Needs
 						effects.emplace_back(effect, v);
 					}
 				}
-				if (effects.empty()) {
+				// 2.6.0: or a keyword on any effect active on the player, the way the game's own
+				// HasMagicEffectKeyword condition asks (Rogues 'n Raiders tags each injury with its
+				// tier and each hex and curse with its kind, across hundreds of effects).
+				std::vector<std::pair<RE::BGSKeyword*, float>> keywords;
+				for (const auto& [id, v] : a_def.effectKeywords) {
+					auto* keyword = RE::TESDataHandler::GetSingleton()->LookupForm<RE::BGSKeyword>(id, in);
+					logs::info("{}: effect keyword {:06X} {}", what, id, keyword ? "found" : "not found");
+					if (keyword) {
+						keywords.emplace_back(keyword, v);
+					}
+				}
+				if (effects.empty() && keywords.empty()) {
 					return s;
 				}
-				value = [effects](float& v, std::string&) {
+				value = [effects, keywords](float& v, std::string&) {
 					auto* player = RE::PlayerCharacter::GetSingleton();
 					auto* target = player ? player->AsMagicTarget() : nullptr;
 					v = 0.0f;
 					for (const auto& [effect, worth] : effects) {
 						if (target && worth > v && target->HasMagicEffect(effect)) {
+							v = worth;
+						}
+					}
+					for (const auto& [keyword, worth] : keywords) {
+						RE::MagicItem* spell = nullptr;
+						if (target && worth > v && target->HasMagicEffectWithKeyword(keyword, &spell)) {
 							v = worth;
 						}
 					}

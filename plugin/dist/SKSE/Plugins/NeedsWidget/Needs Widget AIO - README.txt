@@ -8,13 +8,16 @@ Immersive Needs, Realistic Needs and Diseases, Super Simple Needs, Frostbite and
 Drink It Off, plus encumbrance from the game.
 A need with no mod behind it just doesn't show.
 
-It also comes with five icons that aren't needs:
+It also comes with nine icons that aren't needs:
   Light Level   how bright it is where you stand. From the game itself, so it's off
                 until you turn it on in the menu.
   Lantern Fuel  Chesko's Wearable Lanterns oil or torchbug pollen, when fuel is on.
   Wounds        how badly hurt you are, from Wounds.
-  Injury        Blade & Blunt's injuries (Starfrost's fourth need).
+  Injury        Blade & Blunt's injuries (Starfrost's fourth need), or Rogues 'n Raiders'.
   Vampire       your vampire stage, 1 to 4. Hidden unless you're a vampire.
+  Magic Debuffs Rogues 'n Raiders' hexes, sorceries and curses.
+  Bard          Skyrim's Got Talent: your lute, flute and drum skill, one icon each,
+                hidden once you're a Pro.
 
 Other mods can add icons of their own, one ini file each in
 SKSE/Plugins/NeedsWidget/Icons/. They show in the same widget and menu.
@@ -55,6 +58,10 @@ widget can tint them, and given a soft dark edge.
   Wounds          Bandaged                by Lorc        https://game-icons.net/1x1/lorc/bandaged.html
   Injury          Broken bone             by Lorc        https://game-icons.net/1x1/lorc/broken-bone.html
   Vampire         Vampire Dracula         by Delapouite  https://game-icons.net/1x1/delapouite/vampire-dracula.html
+  Magic Debuffs   Cursed star             by Lorc        https://game-icons.net/1x1/lorc/cursed-star.html
+  Bard - Lute     Lyre                    by Lorc        https://game-icons.net/1x1/lorc/lyre.html
+  Bard - Flute    Flute                   by Delapouite  https://game-icons.net/1x1/delapouite/flute.html
+  Bard - Drum     Drum                    by Delapouite  https://game-icons.net/1x1/delapouite/drum.html
 
 
 CODE

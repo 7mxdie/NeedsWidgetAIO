@@ -21,6 +21,10 @@ page and in the release README.
 | Wounds (extra icon) | `lorc_bandaged.svg` | Lorc | https://game-icons.net/1x1/lorc/bandaged.html |
 | Injury (extra icon) | `lorc_broken-bone.svg` | Lorc | https://game-icons.net/1x1/lorc/broken-bone.html |
 | Vampire (extra icon) | `delapouite_vampire-dracula.svg` | Delapouite | https://game-icons.net/1x1/delapouite/vampire-dracula.html |
+| Magic Debuffs (extra icon) | `lorc_cursed-star.svg` | Lorc | https://game-icons.net/1x1/lorc/cursed-star.html |
+| Bard - Lute (extra icon) | `lorc_lyre.svg` | Lorc | https://game-icons.net/1x1/lorc/lyre.html |
+| Bard - Flute (extra icon) | `delapouite_flute.svg` | Delapouite | https://game-icons.net/1x1/delapouite/flute.html |
+| Bard - Drum (extra icon) | `delapouite_drum.svg` | Delapouite | https://game-icons.net/1x1/delapouite/drum.html |
 
 Files are unchanged from https://github.com/game-icons/icons (master, fetched
 2026-10-21). Picked by Tom from candidate sheets in `../../../art-options/` (thirst and wetness
