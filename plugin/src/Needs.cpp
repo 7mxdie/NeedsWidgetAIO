@@ -1922,7 +1922,7 @@ namespace Needs
 
 			s.installed = true;
 			s.read = [value, max = a_def.max, steps = a_def.steps, higherIsWorse = a_def.higherIsWorse, below = a_def.noValueBelow,
-						 remap = a_def.remap, mod = a_def.mod](Reading& r, std::string& why, std::string&) {
+						 remap = a_def.remap, mod = a_def.mod, showValue = a_def.showValue](Reading& r, std::string& why, std::string&) {
 				float v = 0.0f;
 				if (!value(v, why)) {
 					return false;
@@ -1947,6 +1947,10 @@ namespace Needs
 				} else {
 					r.fraction = (std::max)((max - v) / max, 0.0f);
 					r.stage = static_cast<int>(std::ranges::count_if(steps, [v](float a_step) { return v <= a_step; }));
+				}
+				if (showValue) {
+					r.fraction = (std::max)(v, 0.0f) / max;
+					r.showValue = true;
 				}
 				return true;
 			};

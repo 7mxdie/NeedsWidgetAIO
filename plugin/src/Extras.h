@@ -43,6 +43,7 @@ namespace Extras
 		bool                     negativeRanks{ false };  // bNegativeRanks (FactionRank): ranks under 0 count, but -1 and -2 (not in it)
 		float                    every{ 1.0f };       // fEvery, seconds between Papyrus calls
 		std::optional<float>     noValueBelow;        // fNoValueBelow: a reading under this means the mod isn't tracking it
+		bool                     showValue{ false };  // bShowValue: a stat, the meter is value / max either way and the number the value
 		struct Remap
 		{
 			float from, to, value;

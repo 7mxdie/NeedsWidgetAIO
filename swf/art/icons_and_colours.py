@@ -22,7 +22,7 @@ NEEDS = [("hunger", "Hunger"), ("thirst", "Thirst"), ("cold", "Cold"), ("wetness
          ("vitality", "Vitality"), ("disease", "Disease"), ("stress", "Stress"), ("dirt", "Dirt and Blood"),
          ("encumbrance", "Encumbrance"), ("wounds", "Wounds"), ("injury", "Injury"), ("lantern", "Lantern Fuel"),
          ("light", "Light Level"), ("magicdebuffs", "Magic Debuffs"), ("vampire", "Vampire"), ("lute", "Bard - Lute"),
-         ("flute", "Bard - Flute"), ("drum", "Bard - Drum")]
+         ("flute", "Bard - Flute"), ("drum", "Bard - Drum"), ("strength", "Strength"), ("agility", "Agility"), ("intelligence", "Intelligence")]
 SCHEMES = [("Bone to red", [0xECE9E2, 0xE8DDB0, 0xE8C870, 0xE8A060, 0xD9503F, 0xFF2E1F]),
            ("Green to red", [0x6FBF5A, 0xA9C94E, 0xE3C94A, 0xE8A060, 0xD9503F, 0xFF2E1F])]
 FILL = [0.10, 0.28, 0.46, 0.64, 0.82, 1.0]

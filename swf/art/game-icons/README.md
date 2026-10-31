@@ -25,6 +25,9 @@ page and in the release README.
 | Bard - Lute (extra icon) | `lorc_lyre.svg` | Lorc | https://game-icons.net/1x1/lorc/lyre.html |
 | Bard - Flute (extra icon) | `delapouite_flute.svg` | Delapouite | https://game-icons.net/1x1/delapouite/flute.html |
 | Bard - Drum (extra icon) | `delapouite_drum.svg` | Delapouite | https://game-icons.net/1x1/delapouite/drum.html |
+| Strength (extra icon) | `delapouite_biceps.svg` | Delapouite | https://game-icons.net/1x1/delapouite/biceps.html |
+| Agility (extra icon) | `lorc_sprint.svg` | Lorc | https://game-icons.net/1x1/lorc/sprint.html |
+| Intelligence (extra icon) | `lorc_brain.svg` | Lorc | https://game-icons.net/1x1/lorc/brain.html |
 
 Files are unchanged from https://github.com/game-icons/icons (master, fetched
 2026-10-21). Picked by Tom from candidate sheets in `../../../art-options/` (thirst and wetness

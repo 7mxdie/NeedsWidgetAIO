@@ -182,6 +182,7 @@ namespace Extras
 			}
 			s.every = std::clamp(ReadFloat(a_file, section, L"fEvery").value_or(1.0f), 0.25f, 60.0f);
 			s.noValueBelow = ReadFloat(a_file, section, L"fNoValueBelow");
+			s.showValue = ReadFloat(a_file, section, L"bShowValue").value_or(ReadFloat(a_file, L"Icon", L"bShowValue").value_or(0.0f)) != 0.0f;
 			// "116:0, 1-33:4": a single number or an inclusive range (negative numbers allowed,
 			// so the range dash is the one after the first character).
 			for (const auto& item : Split(Read(a_file, section, L"sRemap"), ',')) {

@@ -1,4 +1,4 @@
-Needs Widget AIO 2.7.0
+Needs Widget AIO 2.8.0
 by mxdie (Tom)
 
 Shows your needs as icons on the HUD, from whichever needs mods you have:
@@ -18,6 +18,9 @@ It also comes with nine icons that aren't needs:
   Magic Debuffs Rogues 'n Raiders' hexes, sorceries and curses.
   Bard          Skyrim's Got Talent: your lute, flute and drum skill, one icon each,
                 hidden once you're a Pro.
+  Strength, Agility, Intelligence
+                Strength Matters, Agility Matters and Intelligence Matters: the stat
+                itself, one icon each, the number is the stat.
 
 Other mods can add icons of their own, one ini file each in
 SKSE/Plugins/NeedsWidget/Icons/. They show in the same widget and menu.
@@ -62,6 +65,9 @@ widget can tint them, and given a soft dark edge.
   Bard - Lute     Lyre                    by Lorc        https://game-icons.net/1x1/lorc/lyre.html
   Bard - Flute    Flute                   by Delapouite  https://game-icons.net/1x1/delapouite/flute.html
   Bard - Drum     Drum                    by Delapouite  https://game-icons.net/1x1/delapouite/drum.html
+  Strength        Biceps                  by Delapouite  https://game-icons.net/1x1/delapouite/biceps.html
+  Agility         Sprint                  by Lorc        https://game-icons.net/1x1/lorc/sprint.html
+  Intelligence    Brain                   by Lorc        https://game-icons.net/1x1/lorc/brain.html
 
 
 CODE

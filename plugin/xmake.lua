@@ -3,7 +3,7 @@ includes("lib/commonlibsse-ng")
 
 -- set project constants
 set_project("NeedsWidget")
-set_version("2.7.0")
+set_version("2.8.0")
 set_languages("c++23")
 set_warnings("allextra")
 

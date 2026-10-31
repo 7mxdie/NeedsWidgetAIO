@@ -6,6 +6,8 @@
 
 #include <cstdarg>
 #include <cstdio>
+#include <cstring>
+#include <fstream>
 
 namespace
 {
@@ -96,9 +98,26 @@ HudLayer::HudLayer()
 	}
 
 	auto* scaleform = RE::BSScaleformManager::GetSingleton();
-	const bool loaded = scaleform->LoadMovieEx(this, FILE_NAME, [](RE::GFxMovieDef* a_def) {
+	// A movie's log only starts once it has loaded, so Scaleform's reason for refusing one
+	// goes nowhere. Lend the loader ours for the load (lolallamaka: file there, right size, refused).
+	auto* gameLog = scaleform->loader ? scaleform->loader->GetStateAddRef(RE::GFxState::StateType::kLog) : nullptr;
+	if (scaleform->loader) {
+		scaleform->loader->SetState(RE::GFxState::StateType::kLog, RE::make_gptr<WidgetLog>().get());
+	}
+	bool loaded = scaleform->LoadMovieEx(this, FILE_NAME, [](RE::GFxMovieDef* a_def) {
 		a_def->SetState(RE::GFxState::StateType::kLog, RE::make_gptr<WidgetLog>().get());
 	});
+	if (!loaded || !uiMovie) {
+		// CommonLib's copy of the load failed; the game's own is what every vanilla menu uses.
+		loaded = scaleform->LoadMovie(this, uiMovie, FILE_NAME.data(), RE::BSScaleformManager::ScaleModeType::kShowAll, 0.0f);
+		logs::info("widget movie: the game's own load {}", loaded && uiMovie ? "worked" : "failed too");
+	}
+	if (scaleform->loader) {
+		scaleform->loader->SetState(RE::GFxState::StateType::kLog, gameLog);
+	}
+	if (gameLog) {
+		gameLog->Release();
+	}
 	logs::info("widget movie {}", loaded && uiMovie ? "loaded" : "FAILED to load");
 	if (!loaded || !uiMovie) {
 		// Two reports (swk09, lolallamaka) with nothing to tell a missing file from one the
@@ -109,7 +128,14 @@ HudLayer::HudLayer()
 		if (ec) {
 			logs::warn("{} is not there, so the icons can't show. Reinstall the mod with its Interface folder.", swf.string());
 		} else {
-			logs::warn("{} is there, {} bytes, but the game couldn't load it.", swf.string(), size);
+			// Right size doesn't prove right bytes: the header says how long the file should be.
+			std::array<char, 8> head{};
+			std::ifstream       in(swf, std::ios::binary);
+			in.read(head.data(), head.size());
+			std::uint32_t declared = 0;
+			std::memcpy(&declared, head.data() + 4, sizeof(declared));
+			logs::warn("{} is there, {} bytes, but the game couldn't load it. It opened here: {}; starts {}{}{}, says it is {} bytes; the game sees it: {}", swf.string(), size,
+				in.good(), head[0], head[1], head[2], declared, scaleform->FileExists("Interface/NeedsWidget/widget.swf"));
 		}
 	}
 }
@@ -402,6 +428,8 @@ void HudLayer::AdvanceMovie(float a_interval, std::uint32_t a_currentTime)
 			s.label = "-";
 		} else if (numberShows == 1 && r.stageName) {
 			s.label = r.stageName;
+		} else if (r.showValue) {
+			s.label = std::format("{:.0f}", r.value);
 		} else {
 			s.label = std::format("{:.0f}%", meter * 100.0f);
 		}

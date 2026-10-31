@@ -50,6 +50,7 @@ namespace Needs
 		int         stage{ 0 };        // 0 = best, 5 = worst
 		const char* stageName{ nullptr };  // a source can name the stage itself; else its names[stage]
 		const char* source{ "" };      // the mod it was read from
+		bool        showValue{ false };  // bShowValue: the number is the value itself, not a percent
 	};
 
 	void Init();

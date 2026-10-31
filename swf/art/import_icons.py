@@ -47,6 +47,9 @@ ICONS = {
     "lute": "lorc_lyre",              # Claude, 2026-10-27 (HB700, Skyrim's Got Talent); no lute on game-icons
     "flute": "delapouite_flute",
     "drum": "delapouite_drum",
+    "strength": "delapouite_biceps",     # Claude, 2026-10-31 (Strength/Agility/Intelligence Matters), for Tom to confirm
+    "agility": "lorc_sprint",
+    "intelligence": "lorc_brain",
     "magicdebuffs": "lorc_cursed-star",  # Claude, 2026-10-27 (CenteredSword, Rogues 'n Raiders)  # Claude, 2026-10-27 (Raynor1511), for Tom to confirm
 }
 FIT = 52.0            # the longer side of every glyph, in canvas units (canvas is 64)
