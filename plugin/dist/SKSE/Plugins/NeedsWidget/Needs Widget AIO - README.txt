@@ -1,4 +1,4 @@
-Needs Widget AIO 2.6.0
+Needs Widget AIO 2.7.0
 by mxdie (Tom)
 
 Shows your needs as icons on the HUD, from whichever needs mods you have:

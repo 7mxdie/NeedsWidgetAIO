@@ -364,14 +364,21 @@ namespace SettingsUI
 				changed |= ImGui::SliderFloat("Opacity##menu", &icon.opacity, 0.0f, 100.0f, "%.0f%%");
 				changed |= ImGui::Checkbox("Show the number##menu", &icon.showNumber);
 				changed |= ImGui::Checkbox("Hide when fine##menu", &icon.hideWhenFine);
-				if (ImGui::Button("Hide this icon##menu")) {
+				const bool hide = ImGui::Button("Hide this icon##menu");
+				if (hide) {
 					icon.enabled = false;
 					changed = true;
 					ImGui::CloseCurrentPopup();
 				}
 				Hint("Show this icon, in its section on the Icons page, brings it back.");
+				if (Needs::HideFrom(id) >= 0) {
+					changed |= ImGui::Checkbox((Needs::HideFromText(id) + "##menu").c_str(), &icon.hideFromStage);
+				}
 				if (changed) {
 					Settings::Set(id, icon);
+				}
+				if (hide) {
+					saveFailed = !Settings::SaveShown(id);
 				}
 			}
 			ImGui::EndPopup();
@@ -817,11 +824,15 @@ namespace SettingsUI
 				ImGui::TextDisabled("%s", Needs::WhyHidden(a_id).c_str());
 				Hint("While this menu is open it shows faded, so you can still place it.");
 			}
-			changed |= ImGui::Checkbox("Show this icon", &icon.enabled);
+			const bool shownChanged = ImGui::Checkbox("Show this icon", &icon.enabled);
+			changed |= shownChanged;
 			changed |= ImGui::Checkbox("Show the number", &icon.showNumber);
 			changed |= ImGui::Checkbox("Hide when fine", &icon.hideWhenFine);
 			ImGui::SameLine();
 			ImGui::TextDisabled("(fine = %s)", Needs::FineMeaning(a_id).c_str());
+			if (Needs::HideFrom(a_id) >= 0) {
+				changed |= ImGui::Checkbox(Needs::HideFromText(a_id).c_str(), &icon.hideFromStage);
+			}
 			changed |= ImGui::SliderFloat("Size", &icon.size, 25.0f, 300.0f, "%.0f%%");
 			changed |= ImGui::SliderFloat("Opacity", &icon.opacity, 0.0f, 100.0f, "%.0f%%");
 			if (Settings::GetGeneral().arrangement == Settings::Arrangement::kFree) {
@@ -830,6 +841,9 @@ namespace SettingsUI
 			}
 			if (changed) {
 				Settings::Set(a_id, icon);
+			}
+			if (shownChanged) {
+				saveFailed = !Settings::SaveShown(a_id);
 			}
 			if (ImGui::Button("Restore this icon's defaults")) {
 				Settings::RestoreDefaults(a_id);

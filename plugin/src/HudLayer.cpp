@@ -100,6 +100,18 @@ HudLayer::HudLayer()
 		a_def->SetState(RE::GFxState::StateType::kLog, RE::make_gptr<WidgetLog>().get());
 	});
 	logs::info("widget movie {}", loaded && uiMovie ? "loaded" : "FAILED to load");
+	if (!loaded || !uiMovie) {
+		// Two reports (swk09, lolallamaka) with nothing to tell a missing file from one the
+		// game couldn't read. A file packed in a BSA isn't seen here; ours ships loose.
+		std::error_code             ec;
+		const std::filesystem::path swf = "Data/Interface/NeedsWidget/widget.swf";
+		const auto                  size = std::filesystem::file_size(swf, ec);
+		if (ec) {
+			logs::warn("{} is not there, so the icons can't show. Reinstall the mod with its Interface folder.", swf.string());
+		} else {
+			logs::warn("{} is there, {} bytes, but the game couldn't load it.", swf.string(), size);
+		}
+	}
 }
 
 HudLayer::~HudLayer()
@@ -370,7 +382,9 @@ void HudLayer::AdvanceMovie(float a_interval, std::uint32_t a_currentTime)
 		const auto r = Needs::Read(need);
 		const auto icon = Settings::Get(need);
 		Sent s;
-		const bool live = icon.enabled && r.available && !(icon.hideWhenFine && r.stage <= Needs::FineUpTo(need));
+		const auto hideFrom = Needs::HideFrom(need);
+		const bool live = icon.enabled && r.available && !(icon.hideWhenFine && r.stage <= Needs::FineUpTo(need)) &&
+		                  !(icon.hideFromStage && hideFrom >= 0 && r.stage >= hideFrom);
 		// While one of our settings pages is open, an icon that is switched on but
 		// hidden (its mod off, or fine with "Hide when fine") shows faded, so it can
 		// still be placed (Tom, TEST3: hunger, cold and fatigue could not be seen

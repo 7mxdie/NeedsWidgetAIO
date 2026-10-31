@@ -71,6 +71,8 @@ namespace Extras
 		std::array<std::string, 6> stages;
 		int                        fineUpTo{ 1 };
 		std::string                fine;  // sFine, empty to build it from the stage names
+		int                        hideFrom{ -1 };  // iHideFrom: its own checkbox hides this stage and worse, -1 none
+		std::string                hideFromText;    // sHideFrom: that checkbox's words
 		std::vector<SourceDef>     sources;
 	};
 

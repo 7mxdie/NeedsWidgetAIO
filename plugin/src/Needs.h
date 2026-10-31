@@ -72,4 +72,6 @@ namespace Needs
 	std::string WhyHidden(Id a_id);    // why it is unavailable, for the settings page
 	std::string FineMeaning(Id a_id);  // what "Hide when fine" counts as fine, in the current mod's words
 	int         FineUpTo(Id a_id);     // "Hide when fine" hides stages up to this one
+	int         HideFrom(Id a_id);     // iHideFrom: the stage its own checkbox hides from, -1 if it has none
+	std::string HideFromText(Id a_id);
 }

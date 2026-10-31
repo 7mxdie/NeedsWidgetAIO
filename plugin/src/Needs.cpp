@@ -217,6 +217,7 @@ namespace Needs
 			std::array<RE::TESGlobal*, 5> thresholds{};
 			RE::TESGlobal*                smiStage{ nullptr };    // Survival Mode Improved's own stage, logged beside ours
 			RE::TESGlobal*                switchedOn{ nullptr };  // Survival Mode Improved's per-need switch
+			std::array<RE::SpellItem*, 6> stageSpells{};          // Survival Mode's stage spells, hunger only for now
 		};
 
 		RE::TESGlobal* modeEnabled{ nullptr };
@@ -242,7 +243,11 @@ namespace Needs
 					why = "Survival Mode is off.";
 					return false;
 				}
-				if (need.switchedOn && need.switchedOn->value == 0.0f) {
+				// SMI's StopNeed takes the stage spells off, so a player who has one is having
+				// the need counted whatever the switch says (Blaque23, Starfrost: "very hungry"
+				// on them while the icon said switched off; JesterFabrey the same).
+				if (need.switchedOn && need.switchedOn->value == 0.0f &&
+					std::ranges::none_of(need.stageSpells, [](RE::SpellItem* a_spell) { return a_spell && PlayerHas(a_spell); })) {
 					why = "This need is switched off in Survival Mode Improved.";
 					return false;
 				}
@@ -1836,6 +1841,59 @@ namespace Needs
 					}
 					return true;
 				};
+			} else if (a_def.type == "ocum") {
+				// OCum (OStim): semen stored, as a percent of its most. OCumScript (quest 0x800) only
+				// tops it up when something asks (GetCumStoredAmount), at most a day for a full refill
+				// x the regen speed, so the stored number goes stale; this adds the refill since, as
+				// that function would. Females get nothing stored: not set, so hidden.
+				auto* quest = FindQuest(std::format("{} quest 000800", a_icon.name), 0x000800, in);
+				if (!quest) {
+					return s;
+				}
+				auto watch = Watch(quest, -1, "OCumScript", { "cumBarMaxAmountPlayer", "cumRegenSpeed" });
+				std::vector<std::shared_ptr<PapyrusCall>> calls;
+				const auto stored = [&](std::string a_key) {
+					PapyrusRequest r;
+					r.script = "StorageUtil";
+					r.function = "GetFloatValue";
+					r.key = std::move(a_key);
+					auto call = std::make_shared<PapyrusCall>();
+					call->label = Describe(r);
+					calls.push_back(call);
+					return Polled(call, std::move(r), std::chrono::duration<float>(a_def.every), a_def.mod);
+				};
+				auto amount = stored("CumStoredAmountV2");
+				auto lastCheck = stored("CumLastCalcTimeV2");
+				logs::info("{}: will read OCum's StorageUtil values every {:.2f} s", what, a_def.every);
+				s.waiting = [watch, calls] {
+					return !Answered(watch) || std::ranges::any_of(calls, [](const auto& c) {
+						std::scoped_lock l(c->lock);
+						return !c->answered && !c->gaveUp && c->problem.empty();
+					});
+				};
+				value = [watch, amount, lastCheck, mod = a_def.mod](float& v, std::string& why) {
+					const auto got = Latest(watch);
+					if (!got[0] || !got[1]) {
+						why = std::format("{}'s script value can't be read yet.", mod);
+						return false;
+					}
+					float a = 0.0f, l = 0.0f;
+					if (!amount(a, why) || !lastCheck(l, why)) {
+						return false;
+					}
+					if (a < 0.0f || l <= 0.0f) {
+						why = std::format("{} isn't keeping any for you.", mod);
+						return false;
+					}
+					const float max = *got[0];
+					if (max <= 0.0f) {
+						return false;
+					}
+					const auto* calendar = RE::Calendar::GetSingleton();
+					const float days = calendar ? (std::max)(calendar->GetCurrentGameTime() - l, 0.0f) : 0.0f;
+					v = std::clamp((a + days * max * *got[1]) / max * 100.0f, 0.0f, 100.0f);
+					return true;
+				};
 			} else if (a_def.type == "wounds") {
 				auto wounds = WoundsValue(in);
 				if (!wounds) {
@@ -1924,6 +1982,14 @@ namespace Needs
 		};
 		hunger.smiStage = FindGlobalByID("SMI_CurrentHungerStage", 0xA14, SMI);
 		hunger.switchedOn = FindGlobalByID("SMI_HungerShouldBeEnabled", 0xF27, SMI);
+		hunger.stageSpells = {
+			FindSpell("Survival hunger stage 0", 0x876, SURVIVAL),
+			FindSpell("Survival hunger stage 1", 0x87E, SURVIVAL),
+			FindSpell("Survival hunger stage 2", 0x880, SURVIVAL),
+			FindSpell("Survival hunger stage 3", 0x881, SURVIVAL),
+			FindSpell("Survival hunger stage 4", 0x886, SURVIVAL),
+			FindSpell("Survival hunger stage 5", 0x885, SURVIVAL),
+		};
 
 		auto& cold = survival[1];
 		cold.value = FindGlobal("Survival_ColdNeedValue", 0x81B, SURVIVAL);
@@ -2166,5 +2232,17 @@ namespace Needs
 		}
 		const auto* extra = Extras::Get(a_id);
 		return extra ? extra->fineUpTo : 0;
+	}
+
+	int HideFrom(Id a_id)
+	{
+		const auto* extra = Extras::Get(a_id);
+		return extra ? extra->hideFrom : -1;
+	}
+
+	std::string HideFromText(Id a_id)
+	{
+		const auto* extra = Extras::Get(a_id);
+		return extra ? extra->hideFromText : std::string();
 	}
 }

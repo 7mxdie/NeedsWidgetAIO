@@ -21,7 +21,8 @@ GEORGIA = r"C:/Windows/Fonts/georgia.ttf"
 NEEDS = [("hunger", "Hunger"), ("thirst", "Thirst"), ("cold", "Cold"), ("wetness", "Wetness"), ("fatigue", "Fatigue"),
          ("vitality", "Vitality"), ("disease", "Disease"), ("stress", "Stress"), ("dirt", "Dirt and Blood"),
          ("encumbrance", "Encumbrance"), ("wounds", "Wounds"), ("injury", "Injury"), ("lantern", "Lantern Fuel"),
-         ("light", "Light Level")]
+         ("light", "Light Level"), ("magicdebuffs", "Magic Debuffs"), ("vampire", "Vampire"), ("lute", "Bard - Lute"),
+         ("flute", "Bard - Flute"), ("drum", "Bard - Drum")]
 SCHEMES = [("Bone to red", [0xECE9E2, 0xE8DDB0, 0xE8C870, 0xE8A060, 0xD9503F, 0xFF2E1F]),
            ("Green to red", [0x6FBF5A, 0xA9C94E, 0xE3C94A, 0xE8A060, 0xD9503F, 0xFF2E1F])]
 FILL = [0.10, 0.28, 0.46, 0.64, 0.82, 1.0]
@@ -62,7 +63,9 @@ def main():
         frame = export(tmp, "frame_ring")
         art = {n: export(tmp, n) for n, _ in NEEDS}
     K = 2  # drawn at 2x, then halved
-    sheet = Image.new("RGBA", (1920 * K, 1080 * K), (0, 0, 0, 255))
+    # 1080 high fitted the first 14 rows; more rows make it taller (2.6.0: 19).
+    H = max(1080, 160 + (len(NEEDS) - 1) * 66 + 70)
+    sheet = Image.new("RGBA", (1920 * K, H * K), (0, 0, 0, 255))
     d = ImageDraw.Draw(sheet)
     name_font = ImageFont.truetype(GEORGIA, 27 * K)
     head_font = ImageFont.truetype(GEORGIA, 44 * K)
@@ -82,7 +85,7 @@ def main():
                 sheet.alpha_composite(im, (int(x0 + s * STEP - ICON / 2), int(cy - ICON / 2)))
     for ri, (n, label) in enumerate(NEEDS):
         d.text((400 * K, TOP + ri * ROW), label, font=name_font, fill="white", anchor="rm")
-    sheet.convert("RGB").resize((1920, 1080), Image.LANCZOS).save(OUT)
+    sheet.convert("RGB").resize((1920, H), Image.LANCZOS).save(OUT)
     print(OUT)
 
 

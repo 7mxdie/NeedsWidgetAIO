@@ -269,8 +269,12 @@ namespace Extras
 				if (s.plugins.empty()) {
 					s.plugins = { "Wounds.esp" };
 				}
+			} else if (s.type == "ocum") {
+				if (s.plugins.empty()) {
+					s.plugins = { "OCum.esp" };
+				}
 			} else {
-				problem = std::format("sType {} is not one this build knows (Global, FactionRank, ActorValue, Papyrus, QuestFunction, StorageFloat, Spells, MagicEffect, ScriptVariable, Wounds, SLOVE, MiniNeeds)", s.type);
+				problem = std::format("sType {} is not one this build knows (Global, FactionRank, ActorValue, Papyrus, QuestFunction, StorageFloat, Spells, MagicEffect, ScriptVariable, Wounds, SLOVE, MiniNeeds, OCum)", s.type);
 			}
 			if (problem.empty() && s.maxFormID != 0 && s.maxEditorID.empty() && s.plugins.empty()) {
 				problem = "iMaxFormID needs sPlugin";
@@ -337,6 +341,11 @@ namespace Extras
 			}
 			d.fineUpTo = std::clamp(static_cast<int>(ReadFloat(file, L"Icon", L"iFineUpTo").value_or(1.0f)), 0, 5);
 			d.fine = Read(file, L"Icon", L"sFine");
+			d.hideFrom = std::clamp(static_cast<int>(ReadFloat(file, L"Icon", L"iHideFrom").value_or(-1.0f)), -1, 5);
+			d.hideFromText = Read(file, L"Icon", L"sHideFrom");
+			if (d.hideFromText.empty()) {
+				d.hideFromText = "Hide at the worst stages";
+			}
 
 			const float max = ReadFloat(file, L"Icon", L"fMax").value_or(100.0f);
 			const bool  higherIsWorse = ReadFloat(file, L"Icon", L"bHigherIsWorse").value_or(1.0f) != 0.0f;

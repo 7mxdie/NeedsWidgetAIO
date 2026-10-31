@@ -20,6 +20,7 @@ namespace Settings
 		bool  enabled{ true };
 		bool  showNumber{ false };
 		bool  hideWhenFine{ false };
+		bool  hideFromStage{ false };  // only for an extra icon with iHideFrom: hide at that stage and worse
 
 		bool operator==(const Icon&) const = default;
 	};
@@ -178,6 +179,7 @@ namespace Settings
 
 	void    Load();
 	bool    Save();                           // writes only what differs from the defaults; false if the file couldn't be written
+	bool    SaveShown(Needs::Id a_id);        // keeps that icon's Show this icon now, and leaves every other unsaved change unsaved
 	void    ScanPresets();                    // reads the Presets folder again
 	std::vector<Preset> GetPresets();
 	void    ApplyPreset(const Preset& a_preset);  // like moving the sliders: Save makes it stick

@@ -144,6 +144,7 @@ namespace Settings
 			i.enabled = ReadBool(a_file, section, L"bEnabled", a_fallback.enabled);
 			i.showNumber = ReadBool(a_file, section, L"bShowNumber", a_fallback.showNumber);
 			i.hideWhenFine = ReadBool(a_file, section, L"bHideWhenFine", a_fallback.hideWhenFine);
+			i.hideFromStage = ReadBool(a_file, section, L"bHideFromStage", a_fallback.hideFromStage);
 			return i;
 		}
 
@@ -468,6 +469,7 @@ namespace Settings
 			Write(a_file, section, L"bEnabled", a_i.enabled ? L"1" : L"0");
 			Write(a_file, section, L"bShowNumber", a_i.showNumber ? L"1" : L"0");
 			Write(a_file, section, L"bHideWhenFine", a_i.hideWhenFine ? L"1" : L"0");
+			Write(a_file, section, L"bHideFromStage", a_i.hideFromStage ? L"1" : L"0");
 		}
 
 		std::string Utf8(const std::wstring& a_text)
@@ -559,9 +561,8 @@ namespace Settings
 			currentGeneral.perLine, currentGeneral.wrapBefore, currentGeneral.lineGap);
 	}
 
-	bool Save()
+	static bool SaveLocked()
 	{
-		std::scoped_lock l(lock);
 		const auto file = CustomPath();
 		writeFailures = 0;
 		pending.emplace(PendingFile{ file, {} });  // a whole new file, so only what differs is in it
@@ -597,6 +598,34 @@ namespace Settings
 		savedGeneral = currentGeneral;
 		logs::info("settings saved to {}: {} section(s) differ from the defaults", std::filesystem::path(file).string(), sections);
 		return true;
+	}
+
+	bool Save()
+	{
+		std::scoped_lock l(lock);
+		return SaveLocked();
+	}
+
+	// ladydias, 2026-10-28: hid the instrument icons and they came back next time. Hiding
+	// only lasted until the game closed unless Save settings was pressed as well, so Show
+	// this icon now keeps itself. Writes what was saved plus this one change, so a preset
+	// being tried or a half-moved slider still waits for Save settings.
+	bool SaveShown(Needs::Id a_id)
+	{
+		std::scoped_lock l(lock);
+		if (a_id >= Needs::kCount) {
+			return false;
+		}
+		const auto liveIcons = current;
+		const auto liveGeneral = currentGeneral;
+		const bool shown = current[a_id].enabled;
+		current = saved;
+		currentGeneral = savedGeneral;
+		current[a_id].enabled = shown;
+		const bool written = SaveLocked();
+		current = liveIcons;
+		currentGeneral = liveGeneral;
+		return written;
 	}
 
 	void ScanPresets()
