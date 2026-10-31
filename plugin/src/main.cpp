@@ -23,8 +23,12 @@ namespace
 			HudLayer::Register();
 			Hotkey::Init();
 			break;
+		case SKSE::MessagingInterface::kPreLoadGame:
+			HudLayer::SetGameLoading(true);
+			break;
 		case SKSE::MessagingInterface::kPostLoadGame:
 		case SKSE::MessagingInterface::kNewGame:
+			HudLayer::SetGameLoading(false);
 			HudLayer::Show();
 			break;
 		default:

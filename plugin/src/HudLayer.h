@@ -35,6 +35,9 @@ public:
 	static void              WatchSpots(bool a_on) { watchSpots = a_on; }
 	static std::vector<Spot> Spots();
 
+	// SKSE says when a save starts and finishes loading; no values are read in between.
+	static void SetGameLoading(bool a_on) { gameLoading = a_on; }
+
 private:
 	// What the widget was last told about one icon, so only changes are sent.
 	struct Sent
@@ -48,6 +51,7 @@ private:
 	};
 
 	static RE::IMenu* Create() { return new HudLayer(); }
+	static inline std::atomic_bool gameLoading{ false };  // between SKSE's kPreLoadGame and kPostLoadGame
 
 	std::string_view HiddenBy() const;  // empty when the widget should show, else why not
 	bool SendStyle();

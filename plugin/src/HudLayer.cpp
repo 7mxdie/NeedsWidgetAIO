@@ -394,6 +394,13 @@ void HudLayer::AdvanceMovie(float a_interval, std::uint32_t a_currentTime)
 	if (sinceValueUpdate < VALUE_INTERVAL) {
 		return;
 	}
+	// While a save is loading the game is rebuilding the player and the scripts, and this menu
+	// can still be ticking: reading them now could touch what's being replaced. Keep the last
+	// values until it's done (McRaimix91, crash after loading; not proven to be this).
+	auto* ui = RE::UI::GetSingleton();
+	if (gameLoading || ui->IsMenuOpen(RE::LoadingMenu::MENU_NAME) || ui->IsMenuOpen(RE::MainMenu::MENU_NAME)) {
+		return;
+	}
 	sinceValueUpdate = 0.0f;
 	const auto numberShows = Settings::GetGeneral().numberShows;
 	const auto numberCase = Settings::GetGeneral().numberCase;
