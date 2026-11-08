@@ -1,4 +1,4 @@
-Needs Widget AIO 2.8.0
+Needs Widget AIO 2.9.0
 by mxdie (Tom)
 
 Shows your needs as icons on the HUD, from whichever needs mods you have:
@@ -8,10 +8,11 @@ Immersive Needs, Realistic Needs and Diseases, Super Simple Needs, Frostbite and
 Drink It Off, plus encumbrance from the game.
 A need with no mod behind it just doesn't show.
 
-It also comes with nine icons that aren't needs:
+It also comes with ten icons that aren't needs:
   Light Level   how bright it is where you stand. From the game itself, so it's off
                 until you turn it on in the menu.
-  Lantern Fuel  Chesko's Wearable Lanterns oil or torchbug pollen, when fuel is on.
+  Lantern Fuel  Chesko's Wearable Lanterns oil or torchbug pollen, when fuel is on, or
+                Fuelable Lanterns for Quick Light.
   Wounds        how badly hurt you are, from Wounds.
   Injury        Blade & Blunt's injuries (Starfrost's fourth need), or Rogues 'n Raiders'.
   Vampire       your vampire stage, 1 to 4. Hidden unless you're a vampire.
@@ -21,6 +22,8 @@ It also comes with nine icons that aren't needs:
   Strength, Agility, Intelligence
                 Strength Matters, Agility Matters and Intelligence Matters: the stat
                 itself, one icon each, the number is the stat.
+  Temperature   how cold the air is: Survival Mode (with or without Survival Mode
+                Improved) or Frostfall. Cold is how cold you are; this is the weather.
 
 Other mods can add icons of their own, one ini file each in
 SKSE/Plugins/NeedsWidget/Icons/. They show in the same widget and menu.
@@ -68,6 +71,7 @@ widget can tint them, and given a soft dark edge.
   Strength        Biceps                  by Delapouite  https://game-icons.net/1x1/delapouite/biceps.html
   Agility         Sprint                  by Lorc        https://game-icons.net/1x1/lorc/sprint.html
   Intelligence    Brain                   by Lorc        https://game-icons.net/1x1/lorc/brain.html
+  Temperature     Thermometer scale       by Lorc        https://game-icons.net/1x1/lorc/thermometer-scale.html
 
 
 CODE

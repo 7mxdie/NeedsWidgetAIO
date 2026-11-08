@@ -112,6 +112,22 @@ HudLayer::HudLayer()
 		loaded = scaleform->LoadMovie(this, uiMovie, FILE_NAME.data(), RE::BSScaleformManager::ScaleModeType::kShowAll, 0.0f);
 		logs::info("widget movie: the game's own load {}", loaded && uiMovie ? "worked" : "failed too");
 	}
+	if (!loaded || !uiMovie) {
+		// Both of those stop at the game's FileExists, and on lolallamaka's game it says no to a
+		// file that's there. Skip the check and hand Scaleform the file itself.
+		for (const auto* name : { "Interface/HUDMenu.swf", "Interface/NeedsWidget/icons/hunger.swf", "Interface/NeedsWidget/widget.swf", "Interface\\NeedsWidget\\widget.swf", "interface/needswidget/widget.swf", "Data/Interface/NeedsWidget/widget.swf" }) {
+			logs::info("the game sees {}: {}", name, scaleform->FileExists(name));
+		}
+		std::error_code ec;
+		const auto      full = std::filesystem::absolute("Data/Interface/NeedsWidget/widget.swf", ec).string();
+		for (const auto& path : { std::string("Interface/NeedsWidget/widget.swf"), std::string("Data/Interface/NeedsWidget/widget.swf"), full }) {
+			loaded = LoadDirect(path);
+			logs::info("widget movie: straight from {}: {}", path, loaded ? "worked" : "failed");
+			if (loaded) {
+				break;
+			}
+		}
+	}
 	if (scaleform->loader) {
 		scaleform->loader->SetState(RE::GFxState::StateType::kLog, gameLog);
 	}
@@ -138,6 +154,34 @@ HudLayer::HudLayer()
 				in.good(), head[0], head[1], head[2], declared, scaleform->FileExists("Interface/NeedsWidget/widget.swf"));
 		}
 	}
+}
+
+// BSScaleformManager::LoadMovieEx without its check that the game can see the file.
+bool HudLayer::LoadDirect(const std::string& a_path)
+{
+	using LoadConstants = RE::GFxLoader::LoadConstants;
+	auto* loader = RE::BSScaleformManager::GetSingleton()->loader;
+	auto* def = loader ? loader->CreateMovie(a_path.c_str(), static_cast<LoadConstants>(LoadConstants::kLoadKeepBindData | LoadConstants::kLoadWaitFrame1)) : nullptr;
+	if (!def) {
+		return false;
+	}
+	def->SetState(RE::GFxState::StateType::kLog, RE::make_gptr<WidgetLog>().get());
+	uiMovie.reset(def->CreateInstance());
+	if (!uiMovie) {
+		return false;
+	}
+	uiMovie->Release();
+	uiMovie->SetViewScaleMode(RE::BSScaleformManager::ScaleModeType::kShowAll);
+	uiMovie->SetBackgroundAlpha(0.0f);
+	if (const auto* state = RE::BSGraphics::State::GetSingleton()) {
+		RE::GViewport view;
+		view.bufferWidth = view.width = state->screenWidth;
+		view.bufferHeight = view.height = state->screenHeight;
+		uiMovie->SetViewport(view);
+	}
+	uiMovie->Advance(0.0f);
+	RefreshPlatform();
+	return true;
 }
 
 HudLayer::~HudLayer()
@@ -217,6 +261,8 @@ bool HudLayer::SendStyle()
 		artSize = s.barArtSize;
 		artY = s.barArtY;
 		labelY = s.barLabelY;
+	} else if (general.look == Settings::Look::kFill) {
+		look = "fill";  // the ring's frame, sizes and number place; the widget fills inside it
 	} else if (general.look == Settings::Look::kIcon) {
 		look = "icon";
 		frame.clear();
@@ -311,7 +357,8 @@ bool HudLayer::SendLayout(Needs::Id a_id)
 	}
 	const float opacity = preview[a_id] ? i.opacity * PREVIEW_OPACITY : i.opacity;
 	return Call("_root.setLayout", { RE::GFxValue(static_cast<double>(a_id)), RE::GFxValue(x), RE::GFxValue(y),
-		RE::GFxValue(size), RE::GFxValue(opacity), RE::GFxValue(i.showNumber), RE::GFxValue(dx), RE::GFxValue(dy) });
+		RE::GFxValue(size), RE::GFxValue(opacity), RE::GFxValue(i.showNumber), RE::GFxValue(dx), RE::GFxValue(dy),
+		RE::GFxValue(i.numberX), RE::GFxValue(i.numberY) });
 }
 
 void HudLayer::AdvanceMovie(float a_interval, std::uint32_t a_currentTime)

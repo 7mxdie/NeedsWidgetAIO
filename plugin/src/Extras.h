@@ -55,6 +55,12 @@ namespace Extras
 		std::string   switchEditorID;
 		std::uint32_t switchFormID{ 0 };
 		float         switchOn{ 1.0f };
+		std::string   switchPlugin;  // sSwitchPlugin (2.9.0): the switch is in this plugin, not sPlugin
+
+		// iPlayerSex (2.9.0, dubenfire): 0 male, 1 female; the source only counts for a
+		// player of that sex. -1, the default, any. Beeing Female keeps a male player's
+		// cycle global at 0, which reads as a phase.
+		int playerSex{ -1 };
 
 		// Resolved against [Icon]'s when the section leaves them out.
 		std::array<std::string, 6> stages;  // sStage0-5, for a mod whose stages mean something else

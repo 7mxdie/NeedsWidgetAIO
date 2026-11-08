@@ -97,6 +97,20 @@ function drawMeter(i)
 		var half = style.ringWidth / 2;
 		drawBand(m, style.ringRadius + half, style.ringRadius - half, 0, Math.PI * 2 * f, color, 100);
 	}
+	else if (style.look == "fill")
+	{
+		// 2.9.0 (AspardMG): the inside of the ring fills from the bottom like a level,
+		// behind the glyph. The level line cuts the circle at angle a either side of
+		// 12 o'clock's opposite; the fill runs round the bottom between those points.
+		var r = style.ringRadius - style.ringWidth / 2;
+		var y0 = r - 2 * r * f;
+		var a = Math.acos(-y0 / r);
+		m.beginFill(color, 55);
+		m.moveTo(Math.sin(a) * r, -Math.cos(a) * r);
+		arcTo(m, r, a, Math.PI * 2 - a);
+		m.lineTo(Math.sin(a) * r, -Math.cos(a) * r);
+		m.endFill();
+	}
 	else
 	{
 		drawRect(m, style.barLeft, style.barTop, style.barLength * f, style.barHeight, color, 100);
@@ -127,15 +141,15 @@ function setNumbers(sizePct, tint, dx, edge, align, font)
 	{
 		labelFormat.font = font;
 	}
-	numberStyle = {size: sizePct, tint: tint, dx: dx, edge: edge != false};
 	var k = sizePct / 100;
+	var left = align == 1 ? dx : (align == 2 ? dx - LABEL_W * k : LABEL_X * k + dx);
+	numberStyle = {size: sizePct, tint: tint, dx: dx, edge: edge != false, left: left};
 	labelFormat.size = LABEL_SIZE * k;
 	labelFormat.align = align == 1 ? "left" : (align == 2 ? "right" : "center");
-	var left = align == 1 ? dx : (align == 2 ? dx - LABEL_W * k : LABEL_X * k + dx);
 	for (var i = 0; i < ICON_COUNT; i++)
 	{
 		var l = icons[i].clip.label;
-		l._x = left;
+		l._x = left + icons[i].ndx;
 		l._width = LABEL_W * k;
 		l._height = LABEL_H * k;
 		l.setNewTextFormat(labelFormat);
@@ -294,7 +308,7 @@ function setStyle(look, frame, artSize, artY, ringRadius, ringWidth, barLeft, ba
 		placeArt(i);
 		applyTint(i);
 		drawMeter(i);
-		icons[i].clip.label._y = labelY;
+		icons[i].clip.label._y = labelY + icons[i].ndy;
 		syncEdge(i);
 	}
 }
@@ -323,7 +337,9 @@ function visibleArea()
 // dx, dy: an extra offset in this movie's own units (an icon is 64 across at
 // 100%), so a row or column can be spaced in icon sizes whatever the screen's
 // shape. The dll works the offsets out; missing means none.
-function setLayout(i, xPct, yPct, sizePct, alphaPct, showNumber, dx, dy)
+// ndx, ndy (2.9.0, phbd01): this icon's number moved from where setNumbers and
+// setStyle put every number, in icon units; missing means none.
+function setLayout(i, xPct, yPct, sizePct, alphaPct, showNumber, dx, dy, ndx, ndy)
 {
 	var c = icons[i].clip;
 	var a = visibleArea();
@@ -335,6 +351,10 @@ function setLayout(i, xPct, yPct, sizePct, alphaPct, showNumber, dx, dy)
 	{
 		dy = 0;
 	}
+	icons[i].ndx = ndx == undefined ? 0 : ndx;
+	icons[i].ndy = ndy == undefined ? 0 : ndy;
+	c.label._x = numberStyle.left + icons[i].ndx;
+	c.label._y = style.labelY + icons[i].ndy;
 	c._x = a.x + a.w * xPct / 100 + dx;
 	c._y = a.y + a.h * yPct / 100 + dy;
 	c._xscale = sizePct;
@@ -488,7 +508,7 @@ var fade = {from: 100, to: 100, start: 0, ms: 0};
 var LABEL_X = -120;  // wide enough for a stage name like Severely Dehydrated
 var LABEL_W = 240;
 var LABEL_H = 24;
-var numberStyle = {size: 100, tint: false, dx: 0, edge: true};
+var numberStyle = {size: 100, tint: false, dx: 0, edge: true, left: LABEL_X};
 var EDGE_X = [-1, 1, -1, 1];
 var EDGE_Y = [-1, -1, 1, 1];
 var labelFormat = new TextFormat();
@@ -521,7 +541,7 @@ for (var n = 0; n < ICON_COUNT; n++)
 	clip.label.text = "";
 	clip.label._visible = false;
 	clip._visible = false;
-	icons.push({clip: clip, fraction: 0, stage: 0, source: undefined, frameSource: undefined});
+	icons.push({clip: clip, fraction: 0, stage: 0, source: undefined, frameSource: undefined, ndx: 0, ndy: 0});
 	loadPicture(n, "art", 0);
 }
 needs._visible = false;

@@ -177,6 +177,7 @@ namespace Extras
 				}
 			}
 			s.negativeRanks = ReadFloat(a_file, section, L"bNegativeRanks").value_or(0.0f) != 0.0f;
+			s.playerSex = std::clamp(static_cast<int>(ReadFloat(a_file, section, L"iPlayerSex").value_or(-1.0f)), -1, 1);
 			for (std::size_t k = 0; k < s.stages.size(); ++k) {
 				s.stages[k] = Read(a_file, section, std::format(L"sStage{}", k).c_str());
 			}
@@ -200,6 +201,7 @@ namespace Extras
 				}
 			}
 			s.switchEditorID = Read(a_file, section, L"sSwitchEditorID");
+			s.switchPlugin = Read(a_file, section, L"sSwitchPlugin");
 			if (const auto id = Read(a_file, section, L"iSwitchFormID"); !id.empty()) {
 				try {
 					s.switchFormID = static_cast<std::uint32_t>(std::stoul(id, nullptr, 16)) & 0xFFFFFF;
@@ -274,8 +276,12 @@ namespace Extras
 				if (s.plugins.empty()) {
 					s.plugins = { "OCum.esp" };
 				}
+			} else if (s.type == "quicklightfuel") {
+				if (s.plugins.empty()) {
+					s.plugins = { "quantLanternsWithFuel.esp" };
+				}
 			} else {
-				problem = std::format("sType {} is not one this build knows (Global, FactionRank, ActorValue, Papyrus, QuestFunction, StorageFloat, Spells, MagicEffect, ScriptVariable, Wounds, SLOVE, MiniNeeds, OCum)", s.type);
+				problem = std::format("sType {} is not one this build knows (Global, FactionRank, ActorValue, Papyrus, QuestFunction, StorageFloat, Spells, MagicEffect, ScriptVariable, Wounds, SLOVE, MiniNeeds, OCum, QuickLightFuel)", s.type);
 			}
 			if (problem.empty() && s.maxFormID != 0 && s.maxEditorID.empty() && s.plugins.empty()) {
 				problem = "iMaxFormID needs sPlugin";

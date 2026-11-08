@@ -47,6 +47,7 @@ ICONS = {
     "lute": "lorc_lyre",              # Claude, 2026-10-27 (HB700, Skyrim's Got Talent); no lute on game-icons
     "flute": "delapouite_flute",
     "drum": "delapouite_drum",
+    "temperature": "lorc_thermometer-scale",  # Claude, 2026-11-08 (Temperature: Survival Mode / SMI / Frostfall), for Tom to confirm
     "strength": "delapouite_biceps",     # Claude, 2026-10-31 (Strength/Agility/Intelligence Matters), for Tom to confirm
     "agility": "lorc_sprint",
     "intelligence": "lorc_brain",

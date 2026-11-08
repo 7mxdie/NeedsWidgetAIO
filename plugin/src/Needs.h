@@ -64,6 +64,9 @@ namespace Needs
 	// The last reading taken on the game thread, for the settings page.
 	Reading Last(Id a_id);
 
+	// The mods that can feed this icon in this game, in the order they're tried (2.9.0).
+	std::vector<std::string> SourceMods(Id a_id);
+
 	// Whether any mod behind this need is in the game at all, switched on or not.
 	// Known once Init has run. Needs whose mods are all missing get no settings
 	// page and no place in a row or column (Tom, TEST6: no page "taking up space

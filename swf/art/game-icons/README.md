@@ -28,6 +28,7 @@ page and in the release README.
 | Strength (extra icon) | `delapouite_biceps.svg` | Delapouite | https://game-icons.net/1x1/delapouite/biceps.html |
 | Agility (extra icon) | `lorc_sprint.svg` | Lorc | https://game-icons.net/1x1/lorc/sprint.html |
 | Intelligence (extra icon) | `lorc_brain.svg` | Lorc | https://game-icons.net/1x1/lorc/brain.html |
+| Temperature (extra icon) | `lorc_thermometer-scale.svg` | Lorc | https://game-icons.net/1x1/lorc/thermometer-scale.html |
 
 Files are unchanged from https://github.com/game-icons/icons (master, fetched
 2026-10-21). Picked by Tom from candidate sheets in `../../../art-options/` (thirst and wetness

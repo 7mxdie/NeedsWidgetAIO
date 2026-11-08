@@ -21,6 +21,13 @@ namespace Settings
 		bool  showNumber{ false };
 		bool  hideWhenFine{ false };
 		bool  hideFromStage{ false };  // only for an extra icon with iHideFrom: hide at that stage and worse
+		// This icon's number moved from where General puts it, in icon units (2.9.0, phbd01:
+		// stage names for a vertical HUD). fNumberX / fNumberY.
+		float numberX{ 0.0f };
+		float numberY{ 0.0f };
+		// sSource (2.9.0, Brunny): read only from this mod (a source's sMod / mod name), for
+		// a game with two mods for one need. Empty: the first one running, as before.
+		std::string source;
 
 		bool operator==(const Icon&) const = default;
 	};
@@ -29,7 +36,8 @@ namespace Settings
 	{
 		kRing,  // a ring round the glyph fills as the need gets worse
 		kBar,   // a small bar under the glyph
-		kIcon   // the glyph alone, coloured by stage
+		kIcon,  // the glyph alone, coloured by stage
+		kFill   // 2.9.0 (AspardMG): the inside of the ring fills from the bottom, like a level
 	};
 
 	// Which colours the stages use. The schemes are fixed; Custom uses

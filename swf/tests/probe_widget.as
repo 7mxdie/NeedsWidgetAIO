@@ -172,6 +172,19 @@ function stepIcon()
 	trace("NWPROBE alignright x=" + c.label._x + " align=" + c.label.getTextFormat().align);
 	w.setNumbers(100, false, 0);
 	trace("NWPROBE plain x=" + c.label._x + " w=" + c.label._width + " size=" + c.label.getTextFormat().size + " color=" + c.label.textColor.toString(16));
+	// One icon's own number nudge (2.9.0): on top of setNumbers' place and setStyle's labelY.
+	w.setLayout(0, 50, 50, 100, 100, true, 0, 0, 30, -12);
+	trace("NWPROBE numbernudge x=" + c.label._x + " y=" + c.label._y + " edge=" + (c.edge0._x - c.label._x));
+	w.setLayout(0, 50, 50, 100, 100, true);
+	trace("NWPROBE numbernudge reset x=" + c.label._x + " y=" + c.label._y);
+	// The Fill look (2.9.0): half full fills the bottom half of the inside of the ring.
+	styleArgs("fill", "frame_ring", 42, 0, 31, true, false);
+	w.setIcon(0, true, 0.5, 3, "50%");
+	trace("NWPROBE fill half w=" + Math.round(c.meter._width) + " h=" + Math.round(c.meter._height) + " top=" + Math.round(c.meter.getBounds(c).yMin));
+	w.setIcon(0, true, 1, 3, "100%");
+	trace("NWPROBE fill full w=" + Math.round(c.meter._width) + " h=" + Math.round(c.meter._height));
+	styleArgs("icon", "", 36, 0, 31, false, false);
+	w.setIcon(0, true, 0.75, 4, "75%");
 	w.setLayout(1, 0, 100, 100, 100, false);
 	var c1 = w.icons[1].clip;
 	trace("NWPROBE corner x=" + c1._x + " y=" + c1._y);

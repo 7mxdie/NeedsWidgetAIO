@@ -37,8 +37,11 @@ public:
 
 	// SKSE says when a save starts and finishes loading; no values are read in between.
 	static void SetGameLoading(bool a_on) { gameLoading = a_on; }
+	static bool GameLoading() { return gameLoading; }
 
 private:
+	bool LoadDirect(const std::string& a_path);
+
 	// What the widget was last told about one icon, so only changes are sent.
 	struct Sent
 	{

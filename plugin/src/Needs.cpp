@@ -1,6 +1,8 @@
 #include "Needs.h"
 
 #include "Extras.h"
+#include "HudLayer.h"
+#include "Settings.h"
 
 namespace Needs
 {
@@ -531,8 +533,21 @@ namespace Needs
 					}
 					++count;
 				}
+				// 2.9.0 (Brunny: red at 80% for good): only a stage spell whose effect is running
+				// counts. Kept in the spell list after a cure it means nothing, the same trap as
+				// Survival Mode's leftover stage spells above.
+				std::vector<RE::MagicItem*> running;
+				if (!rndStages.empty()) {
+					if (auto* const effects = target ? target->GetActiveEffectList() : nullptr) {
+						for (auto* effect : *effects) {
+							if (effect && effect->spell && !effect->flags.any(RE::ActiveEffect::Flag::kInactive, RE::ActiveEffect::Flag::kDispelled)) {
+								running.push_back(effect->spell);
+							}
+						}
+					}
+				}
 				for (const auto& [stage, sev] : rndStages) {
-					if (PlayerHas(stage) && sev >= worst) {
+					if (std::ranges::find(running, static_cast<RE::MagicItem*>(stage)) != running.end() && sev >= worst) {
 						worst = sev;
 						from = "Realistic Needs and Diseases";
 						if (named.empty()) {
@@ -980,19 +995,32 @@ namespace Needs
 			auto  watch = Watch(quest, 0, "_JSW_FB_HandlerScript", { "::BodyTemp_var" });
 			s.installed = true;
 			s.waiting = [watch] { return !Answered(watch); };
+			// 2.9.0 (Brunny: cold comes and goes): the handler script can be unbound for a
+			// moment (its alias refilled, a quest restart), which used to hide the icon or hand
+			// it to the next mod. Keep the last reading for up to 30 seconds of that.
+			struct Held
+			{
+				std::optional<float>                  temp;
+				std::chrono::steady_clock::time_point at;
+			};
+			auto held = std::make_shared<Held>();
 			s.read = [=](Reading& r, std::string& why, std::string&) {
 				if (enabled && enabled->value != 1.0f) {
 					why = "Frostbite is switched off.";
 					return false;
 				}
 				const auto got = Latest(watch);
-				if (!got[0]) {
+				const auto now = std::chrono::steady_clock::now();
+				if (got[0]) {
+					held->temp = *got[0];
+					held->at = now;
+				} else if (!held->temp || now - held->at > std::chrono::seconds(30)) {
 					why = "Frostbite's body temperature can't be read yet.";
 					return false;
 				}
 				const float stops = regen ? 100.0f * (1.0f - regen->value) : 50.0f;
 				const float hurts = damage ? 100.0f * (1.0f - damage->value) : 80.0f;
-				r.value = 100.0f * (1.0f - std::clamp(*got[0], 0.0f, 1.0f));
+				r.value = 100.0f * (1.0f - std::clamp(*held->temp, 0.0f, 1.0f));
 				r.max = 100.0f;
 				r.fraction = r.value / r.max;
 				r.stage = StepsReached(r.value, std::array{ 1.0f, stops / 2.0f, stops, (stops + hurts) / 2.0f, hurts });
@@ -1130,7 +1158,9 @@ namespace Needs
 		{
 			Source s;
 			s.mod = "Bathing in Skyrim";
-			s.names = { "Clean", "Not Dirty", "Not Dirty", "Slightly Dirty", "Quite Dirty", "Filthy" };
+			// 2.9.0 (phbd01: not clear): plainer words than the mod's own Not Dirty / Slightly
+			// Dirty / Quite Dirty, which read as cleaner the further they go.
+			s.names = { "Clean", "A Bit Grubby", "A Bit Grubby", "Dirty", "Very Dirty", "Filthy" };
 			if (!Loaded(BATHING)) {
 				return s;
 			}
@@ -1336,7 +1366,16 @@ namespace Needs
 				auto* vm = RE::BSScript::Internal::VirtualMachine::GetSingleton();
 				auto* player = RE::PlayerCharacter::GetSingleton();
 				bool  sent = false;
-				if (vm && player) {
+				// Asked before a load started and only run now: leave it, it's asked again after.
+				if (HudLayer::GameLoading()) {
+					std::scoped_lock l(a_call->lock);
+					a_call->inFlight = false;
+					return;
+				}
+				// Dispatching to a script that doesn't exist crashes the game (McRaimix91's two logs:
+				// SloangNative.GetExposure on OSL Aroused, whose esm matches). Check it's there first.
+				RE::BSTSmartPointer<RE::BSScript::ObjectTypeInfo> type;
+				if (vm && player && vm->GetScriptObjectType1(r.script.c_str(), type) && type) {
 					RE::BSTSmartPointer<RE::BSScript::IStackCallbackFunctor> answer(new PapyrusAnswer(a_call));
 					auto*                                                    policy = vm->GetObjectHandlePolicy();
 					if (r.onPlayer) {
@@ -1894,6 +1933,61 @@ namespace Needs
 					v = std::clamp((a + days * max * *got[1]) / max * 100.0f, 0.0f, 100.0f);
 					return true;
 				};
+			} else if (a_def.type == "quicklightfuel") {
+				// Fuelable Lanterns for Quick Light SE (Nexus 82809, 0.3; Mirax). Read from its own
+				// scripts: a full tank is _quantLanternsWithFuelDuration (019D16, real seconds,
+				// the MCM's Light Duration) and _quantLanternsWithFuelElapsed (019D15) what has
+				// burned, written only when the lantern goes out. So while it's lit, the light
+				// effect's own running time comes off too. Lit with the tank empty, the effect
+				// ends, it resets Elapsed and swaps the lantern for a plain one: with no fuelled
+				// lantern (_quantLanternWithFuel 03378D) on the player there's nothing to show.
+				auto* const dh = RE::TESDataHandler::GetSingleton();
+				auto*       duration = FindGlobal("_quantLanternsWithFuelDuration", 0x019D16, in);
+				auto*       elapsed = FindGlobal("_quantLanternsWithFuelElapsed", 0x019D15, in);
+				auto*       lantern = dh->LookupForm<RE::TESBoundObject>(0x03378D, in);
+				std::vector<RE::EffectSetting*> lights;
+				for (const auto id : { 0x0012C5u, 0x004348u, 0x004349u, 0x005E3Au }) {
+					if (auto* e = dh->LookupForm<RE::EffectSetting>(id, "QuickLight.esp")) {
+						lights.push_back(e);
+					}
+				}
+				logs::info("{}: tank {}, burned {}, lantern {}, {} of 4 Quick Light effects", what, duration ? "found" : "not found",
+					elapsed ? "found" : "not found", lantern ? "found" : "not found", lights.size());
+				if (!duration || !elapsed || !lantern) {
+					return s;
+				}
+				value = [duration, elapsed, lantern, lights, mod = a_def.mod](float& v, std::string& why) {
+					auto* player = RE::PlayerCharacter::GetSingleton();
+					auto* changes = player ? player->GetInventoryChanges(true) : nullptr;
+					std::int32_t count = 0;
+					if (changes && changes->entryList) {
+						for (const auto* entry : *changes->entryList) {
+							if (entry && entry->object == lantern) {
+								count += entry->countDelta;
+							}
+						}
+					}
+					if (count <= 0) {
+						why = std::format("You aren't carrying a lantern with fuel ({}).", mod);
+						return false;
+					}
+					if (duration->value <= 0.0f) {
+						why = std::format("{} has no light duration set.", mod);
+						return false;
+					}
+					float burning = 0.0f;
+					auto* target = player->AsMagicTarget();
+					if (auto* const effects = target ? target->GetActiveEffectList() : nullptr) {
+						for (auto* effect : *effects) {
+							if (effect && !effect->flags.any(RE::ActiveEffect::Flag::kInactive, RE::ActiveEffect::Flag::kDispelled) &&
+								std::ranges::find(lights, effect->GetBaseObject()) != lights.end()) {
+								burning = (std::max)(burning, effect->elapsedSeconds);
+							}
+						}
+					}
+					v = std::clamp(100.0f * (duration->value - elapsed->value - burning) / duration->value, 0.0f, 100.0f);
+					return true;
+				};
 			} else if (a_def.type == "wounds") {
 				auto wounds = WoundsValue(in);
 				if (!wounds) {
@@ -1907,13 +2001,28 @@ namespace Needs
 			// The mod's own on/off switch: while it's off the source doesn't count, so a later
 			// one can feed the icon, or it hides saying why.
 			if (!a_def.switchEditorID.empty() || a_def.switchFormID != 0) {
-				auto* sw = FindGlobal(a_def.switchEditorID.empty() ? std::format("{:06X}", a_def.switchFormID) : a_def.switchEditorID, a_def.switchFormID, in);
+				const std::string_view swIn = a_def.switchPlugin.empty() ? in : std::string_view(a_def.switchPlugin);
+				auto* sw = (a_def.switchPlugin.empty() || Loaded(swIn)) ? FindGlobal(a_def.switchEditorID.empty() ? std::format("{:06X}", a_def.switchFormID) : a_def.switchEditorID, a_def.switchFormID, swIn) : nullptr;
 				if (!sw) {
 					return s;
 				}
 				value = [value, sw, on = a_def.switchOn, mod = a_def.mod](float& v, std::string& why) {
 					if (sw->value != on) {
 						why = std::format("{} has it switched off.", mod);
+						return false;
+					}
+					return value(v, why);
+				};
+			}
+
+			// iPlayerSex: only for a player of that sex (Beeing Female's cycle global reads 0,
+			// a phase, for a male player; dubenfire, 2.8.0).
+			if (a_def.playerSex >= 0) {
+				value = [value, sex = a_def.playerSex, mod = a_def.mod](float& v, std::string& why) {
+					auto* player = RE::PlayerCharacter::GetSingleton();
+					auto* base = player ? player->GetActorBase() : nullptr;
+					if (!base || static_cast<int>(base->GetSex()) != sex) {
+						why = std::format("{} only tracks this for {} characters.", mod, sex == 1 ? "female" : "male");
 						return false;
 					}
 					return value(v, why);
@@ -2140,6 +2249,19 @@ namespace Needs
 		}
 	}
 
+	std::vector<std::string> SourceMods(Id a_id)
+	{
+		std::vector<std::string> out;
+		if (a_id < kCount) {
+			for (const auto& s : sources[a_id]) {
+				if (s.installed && std::ranges::find(out, std::string(s.mod)) == out.end()) {
+					out.emplace_back(s.mod);
+				}
+			}
+		}
+		return out;
+	}
+
 	Reading Read(Id a_id)
 	{
 		Reading r;
@@ -2150,8 +2272,12 @@ namespace Needs
 		std::string extra;
 		const Source* used = nullptr;
 		std::vector<std::string> off;
+		// The player's pick on the icon's page (Brunny: RND and Survival Mode both feeding
+		// fatigue). A pick whose mod isn't in this game any more falls back to Automatic.
+		const auto pick = Settings::Get(a_id).source;
+		const bool picked = !pick.empty() && std::ranges::any_of(sources[a_id], [&](const Source& s) { return s.installed && pick == s.mod; });
 		for (const auto& s : sources[a_id]) {
-			if (!s.installed) {
+			if (!s.installed || (picked && pick != s.mod)) {
 				continue;
 			}
 			Reading attempt;

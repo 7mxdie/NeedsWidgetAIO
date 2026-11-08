@@ -363,6 +363,10 @@ namespace SettingsUI
 				changed |= ImGui::SliderFloat("Size##menu", &icon.size, 25.0f, 300.0f, "%.0f%%");
 				changed |= ImGui::SliderFloat("Opacity##menu", &icon.opacity, 0.0f, 100.0f, "%.0f%%");
 				changed |= ImGui::Checkbox("Show the number##menu", &icon.showNumber);
+				if (icon.showNumber) {
+					changed |= ImGui::SliderFloat("Number sideways##menu", &icon.numberX, -200.0f, 200.0f, "%.0f");
+					changed |= ImGui::SliderFloat("Number up/down##menu", &icon.numberY, -120.0f, 120.0f, "%.0f");
+				}
 				changed |= ImGui::Checkbox("Hide when fine##menu", &icon.hideWhenFine);
 				const bool hide = ImGui::Button("Hide this icon##menu");
 				if (hide) {
@@ -600,6 +604,9 @@ namespace SettingsUI
 			changed |= ImGui::RadioButton("Bar", &look, 1);
 			ImGui::SameLine();
 			changed |= ImGui::RadioButton("Icon only", &look, 2);
+			ImGui::SameLine();
+			changed |= ImGui::RadioButton("Fill", &look, 3);
+			Hint("Fill: the inside of the circle fills up from the bottom, like a level.\nWith \"Meters drain\" on it starts full and empties.");
 			changed |= ImGui::Checkbox("Colour the icons as needs get worse", &g.tintArt);
 			changed |= ImGui::Checkbox("Meters drain as needs get worse", &g.meterDrains);
 			Hint("Off: a meter fills up as a need gets worse. On: it starts full and empties,\nand the percent counts down with it.");
@@ -824,9 +831,32 @@ namespace SettingsUI
 				ImGui::TextDisabled("%s", Needs::WhyHidden(a_id).c_str());
 				Hint("While this menu is open it shows faded, so you can still place it.");
 			}
+			// 2.9.0 (Brunny): with two mods for one need, pick the one to read.
+			if (const auto mods = Needs::SourceMods(a_id); mods.size() > 1) {
+				const std::string current = icon.source.empty() ? std::string("Automatic (the first one running)") : icon.source;
+				if (ImGui::BeginCombo("Read from", current.c_str())) {
+					if (ImGui::Selectable("Automatic (the first one running)", icon.source.empty())) {
+						icon.source.clear();
+						changed = true;
+					}
+					for (const auto& m : mods) {
+						if (ImGui::Selectable(m.c_str(), icon.source == m)) {
+							icon.source = m;
+							changed = true;
+						}
+					}
+					ImGui::EndCombo();
+				}
+				Hint("Automatic uses the first of these mods that's running, top to bottom.\nPick one to read only that mod.");
+			}
 			const bool shownChanged = ImGui::Checkbox("Show this icon", &icon.enabled);
 			changed |= shownChanged;
 			changed |= ImGui::Checkbox("Show the number", &icon.showNumber);
+			if (icon.showNumber) {
+				changed |= ImGui::SliderFloat("Move this number sideways", &icon.numberX, -200.0f, 200.0f, "%.0f");
+				changed |= ImGui::SliderFloat("Move this number up or down", &icon.numberY, -120.0f, 120.0f, "%.0f");
+				Hint("On top of General > Numbers, for this icon only. Ctrl+click a slider to type a number.");
+			}
 			changed |= ImGui::Checkbox("Hide when fine", &icon.hideWhenFine);
 			ImGui::SameLine();
 			ImGui::TextDisabled("(fine = %s)", Needs::FineMeaning(a_id).c_str());

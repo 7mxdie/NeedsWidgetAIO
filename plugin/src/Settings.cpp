@@ -145,6 +145,18 @@ namespace Settings
 			i.showNumber = ReadBool(a_file, section, L"bShowNumber", a_fallback.showNumber);
 			i.hideWhenFine = ReadBool(a_file, section, L"bHideWhenFine", a_fallback.hideWhenFine);
 			i.hideFromStage = ReadBool(a_file, section, L"bHideFromStage", a_fallback.hideFromStage);
+			i.numberX = ReadFloat(a_file, section, L"fNumberX", a_fallback.numberX);
+			i.numberY = ReadFloat(a_file, section, L"fNumberY", a_fallback.numberY);
+			i.source = a_fallback.source;
+			if (const auto s = ReadString(a_file, section, L"sSource"); !s.empty()) {
+				i.source.clear();
+				for (const auto c : s) {
+					i.source += static_cast<char>(c < 128 ? c : '_');
+				}
+				if (i.source == "-") {
+					i.source.clear();  // written for Automatic over a default that names a mod
+				}
+			}
 			return i;
 		}
 
@@ -253,7 +265,7 @@ namespace Settings
 		{
 			General g;
 			const auto look = static_cast<int>(ReadFloat(a_file, L"General", L"iLook", static_cast<float>(a_fallback.look)));
-			g.look = static_cast<Look>(std::clamp(look, 0, 2));
+			g.look = static_cast<Look>(std::clamp(look, 0, 3));
 			g.tintArt = ReadBool(a_file, L"General", L"bTintIcons", a_fallback.tintArt);
 			const auto colors = static_cast<int>(ReadFloat(a_file, L"General", L"iColorScheme", static_cast<float>(a_fallback.colors)));
 			g.colors = static_cast<ColorScheme>(std::clamp(colors, 0, 2));
@@ -470,6 +482,11 @@ namespace Settings
 			Write(a_file, section, L"bShowNumber", a_i.showNumber ? L"1" : L"0");
 			Write(a_file, section, L"bHideWhenFine", a_i.hideWhenFine ? L"1" : L"0");
 			Write(a_file, section, L"bHideFromStage", a_i.hideFromStage ? L"1" : L"0");
+			Write(a_file, section, L"fNumberX", Number(a_i.numberX));
+			Write(a_file, section, L"fNumberY", Number(a_i.numberY));
+			if (!a_i.source.empty()) {
+				Write(a_file, section, L"sSource", Wide(a_i.source));
+			}
 		}
 
 		std::string Utf8(const std::wstring& a_text)
