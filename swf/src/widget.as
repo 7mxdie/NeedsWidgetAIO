@@ -105,7 +105,7 @@ function drawMeter(i)
 		var r = style.ringRadius - style.ringWidth / 2;
 		var y0 = r - 2 * r * f;
 		var a = Math.acos(-y0 / r);
-		m.beginFill(color, 55);
+		m.beginFill(color, 40);
 		m.moveTo(Math.sin(a) * r, -Math.cos(a) * r);
 		arcTo(m, r, a, Math.PI * 2 - a);
 		m.lineTo(Math.sin(a) * r, -Math.cos(a) * r);
