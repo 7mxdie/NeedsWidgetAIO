@@ -3,10 +3,11 @@
 // Reads what the icons show, straight from the game. Each need can come from
 // several mods; the first one in the list that is running feeds the icon
 // (TEST7, Tom: "coverage for every need you find in modded Skyrim"):
-//   hunger      - Survival Mode (+ Survival Mode Improved), SunHelm, Last Seed, iNeed
+//   hunger      - Survival Mode (+ Survival Mode Improved), SunHelm, Last Seed, iNeed, Simple Needs Expanded
 //   cold        - Survival Mode (+ SMI), SunHelm, Frostfall
-//   fatigue     - Survival Mode (+ SMI), SunHelm, Last Seed, iNeed
-//   thirst      - SunHelm, Last Seed, iNeed, DVSMP Survival Tweaks (LoreRim's thirst), Tears of Kyne
+//   fatigue     - Survival Mode (+ SMI), SunHelm, Last Seed, iNeed, Simple Needs Expanded
+//   thirst      - SunHelm, Last Seed, iNeed, DVSMP Survival Tweaks (LoreRim's thirst), Tears of Kyne,
+//                 Simple Needs Expanded
 //   wetness     - Frostfall
 //   stress      - Stress and Fear
 //   dirt        - Dirt and Blood, Bathing in Skyrim, Keep It Clean

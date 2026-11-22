@@ -937,6 +937,74 @@ namespace Needs
 			return s;
 		}
 
+		// --- Simple Needs Expanded - Eat Sleep Drink Go Home (Nexus 180298) ------------------------
+		// Ships as Super Simple Needs.esp too, ESL-flagged or not (same form IDs), with the same quest,
+		// alias and script names, but its own records: the quest is 000001, so the original's 005901
+		// isn't there and the two never both read. mzin_SSN_PlayerAlias keeps when you last ate,
+		// drank, slept and were home (LastMealT, LastDrinkT, LastRestT, LastHomeT, in game days),
+		// checked every aaaSSN_UpdateInterval game hours: a warning message from
+		// aaaSSN_HoursToGet<Need>Warning, the penalty ability from aaaSSN_HoursToGet<Need>. Those and
+		// each aaaSSN_ShouldTrack<Need> switch are meant to be changed from the console, so they're
+		// read live. Homesick is the extra icon in Icons/Homesick.ini (sType SimpleNeedsHome). Read
+		// from 1.0's esp and script; tested in game by its author (Nick, 2026-11-22).
+
+		RE::TESQuest*                expandedQuest{ nullptr };
+		std::shared_ptr<ScriptWatch> expandedWatch;
+		enum ExpandedVariable : std::size_t
+		{
+			kLastMeal,
+			kLastRest,
+			kLastDrink,
+			kLastHome,
+			kHasHome
+		};
+
+		// Hours since the time in the variable, if the script has set it.
+		std::optional<float> ExpandedHoursSince(const std::vector<std::optional<float>>& a_got, ExpandedVariable a_variable)
+		{
+			const auto* calendar = RE::Calendar::GetSingleton();
+			if (a_got.size() <= a_variable || !a_got[a_variable] || *a_got[a_variable] <= 0.0f || !calendar) {
+				return std::nullopt;
+			}
+			return (std::max)((calendar->GetDaysPassed() - *a_got[a_variable]) * 24.0f, 0.0f);
+		}
+
+		Source SimpleNeedsExpandedSource(const char* a_state, const char* a_need, ExpandedVariable a_variable, RE::FormID a_spell,
+			RE::FormID a_at, RE::FormID a_warn, RE::FormID a_track, float a_defaultAt, float a_defaultWarn, Names a_names)
+		{
+			Source s;
+			s.mod = "Simple Needs Expanded";
+			s.names = a_names;
+			if (!expandedQuest) {
+				return s;
+			}
+			auto* spell = FindSpell(std::format("mzin_SSN_Spell{}", a_state), a_spell, SIMPLE_NEEDS);
+			auto* at = FindGlobal(std::format("aaaSSN_HoursToGet{}", a_state), a_at, SIMPLE_NEEDS);
+			auto* warn = FindGlobal(std::format("aaaSSN_HoursToGet{}Warning", a_state), a_warn, SIMPLE_NEEDS);
+			auto* track = FindGlobal(std::format("aaaSSN_ShouldTrack{}", a_need), a_track, SIMPLE_NEEDS);
+			auto  watch = expandedWatch;
+			s.installed = true;
+			s.waiting = [watch] { return !Answered(watch); };
+			s.read = [=](Reading& r, std::string& why, std::string&) {
+				if (track && track->value <= 0.0f) {
+					why = "This need is switched off in Simple Needs Expanded.";
+					return false;
+				}
+				const float atHours = at && at->value > 0.0f ? at->value : a_defaultAt;
+				const float warnHours = std::clamp(warn ? warn->value : a_defaultWarn, 0.0f, atHours);
+				r.max = atHours;
+				r.value = ExpandedHoursSince(Latest(watch), a_variable).value_or(0.0f);
+				r.stage = StepsReached(r.value, std::array{ warnHours / 2.0f, warnHours, atHours, atHours, 1.0e9f });
+				if (PlayerHas(spell)) {
+					r.stage = 4;
+					r.value = (std::max)(r.value, atHours);
+				}
+				r.fraction = (std::min)(r.value / r.max, 1.0f);
+				return true;
+			};
+			return s;
+		}
+
 		// --- Realistic Needs and Diseases (Nexus 23799) -------------------------------------------
 		// RND_HungerPoints, RND_ThirstPoints and RND_SleepPoints, 0 to 240, higher is worse,
 		// moved once a game hour by its timer effects and straight away by eating, drinking
@@ -1988,6 +2056,50 @@ namespace Needs
 					v = std::clamp(100.0f * (duration->value - elapsed->value - burning) / duration->value, 0.0f, 100.0f);
 					return true;
 				};
+			} else if (a_def.type == "simpleneedshome") {
+				// Simple Needs Expanded's homesickness (see SimpleNeedsExpandedSource): hours since you
+				// were last home, put on a scale where its warning hours are 60 and its homesick hours
+				// 100, since both can be moved from the console. Nothing to count until it has seen
+				// you in a player home once (HasHome), or while it's switched off.
+				if (!expandedQuest) {
+					logs::info("{}: Simple Needs Expanded's quest not found in {}", what, in);
+					return s;
+				}
+				auto* spell = FindSpell("mzin_SSN_SpellHomesick", 0x000021, in);
+				auto* at = FindGlobal("aaaSSN_HoursToGetHomesick", 0x000015, in);
+				auto* warn = FindGlobal("aaaSSN_HoursToGetHomesickWarning", 0x000016, in);
+				auto* track = FindGlobal("aaaSSN_ShouldTrackHomesick", 0x00001D, in);
+				auto  watch = expandedWatch;
+				s.waiting = [watch] { return !Answered(watch); };
+				value = [watch, spell, at, warn, track, mod = a_def.mod](float& v, std::string& why) {
+					if (track && track->value <= 0.0f) {
+						why = std::format("{} has it switched off.", mod);
+						return false;
+					}
+					const auto got = Latest(watch);
+					if (got.size() <= kHasHome || !got[kHasHome]) {
+						why = std::format("{}'s script value can't be read yet.", mod);
+						return false;
+					}
+					if (*got[kHasHome] == 0.0f) {
+						why = std::format("{} hasn't seen you in a player home yet.", mod);
+						return false;
+					}
+					const float atHours = at && at->value > 0.0f ? at->value : 120.0f;
+					const float warnHours = std::clamp(warn ? warn->value : 72.0f, 0.0f, atHours);
+					const float hours = ExpandedHoursSince(got, kLastHome).value_or(0.0f);
+					if (hours >= atHours) {
+						v = 100.0f;
+					} else if (hours >= warnHours) {
+						v = 60.0f + 40.0f * (hours - warnHours) / (atHours - warnHours);
+					} else {
+						v = warnHours > 0.0f ? 60.0f * hours / warnHours : 60.0f;
+					}
+					if (PlayerHas(spell)) {
+						v = 100.0f;
+					}
+					return true;
+				};
 			} else if (a_def.type == "wounds") {
 				auto wounds = WoundsValue(in);
 				if (!wounds) {
@@ -2161,6 +2273,12 @@ namespace Needs
 		auto* inThirstEnabled = Loaded(IMMERSIVE_NEEDS) ? RE::TESDataHandler::GetSingleton()->LookupForm<RE::TESGlobal>(0xA08, IMMERSIVE_NEEDS) : nullptr;
 		auto* inSleepless = Loaded(IMMERSIVE_NEEDS) ? RE::TESDataHandler::GetSingleton()->LookupForm<RE::TESGlobal>(0x8DB, IMMERSIVE_NEEDS) : nullptr;
 		rndOn = Loaded(RND) ? FindGlobal("RND_State", 0x012C4C, RND) : nullptr;
+		if (Loaded(SIMPLE_NEEDS)) {
+			expandedQuest = FindQuest("mzin_SSN_Quest (Simple Needs Expanded)", 0x000001, SIMPLE_NEEDS);
+			if (expandedQuest) {
+				expandedWatch = Watch(expandedQuest, 0, "mzin_SSN_PlayerAlias", { "LastMealT", "LastRestT", "LastDrinkT", "LastHomeT", "HasHome" });
+			}
+		}
 
 		// In the order they are tried: the first one running feeds the icon.
 		sources[kHunger] = {
@@ -2172,6 +2290,8 @@ namespace Needs
 				{ "Well Sated", "Sated", "A Bit Hungry", "Mildly Hungry", "Moderately Hungry", "Severely Hungry" }),
 			ImmersiveNeedsSource("hunger", 0x83B, "Hungry", 3, 0x9EF, "Starving", "Fed", nullptr, 0.0f, ""),
 			SimpleNeedsSource("LocalLastMealTime", "mzin_SSN_SpellHungry", 0x005906, 10.0f, 12.0f,
+				{ "Fed", "Fed", "Getting Hungry", "Hungry", "Hungry", "Hungry" }),
+			SimpleNeedsExpandedSource("Hungry", "Hunger", kLastMeal, 0x000006, 0x00000F, 0x000010, 0x00001B, 8.0f, 6.0f,
 				{ "Fed", "Fed", "Getting Hungry", "Hungry", "Hungry", "Hungry" }),
 			RndSource("RND_HungerPoints", 0x002884, { 5, 30, 60, 120, 240 },
 				{ "Overindulged", "Satiated", "Peckish", "Hungry", "Very Hungry", "Starving" }),
@@ -2194,6 +2314,8 @@ namespace Needs
 				"Immersive Needs has sleep switched off (Sleepless Undeath)."),
 			SimpleNeedsSource("LocalLastRestTime", "mzin_SSN_SpellSleepy", 0x005908, 20.0f, 24.0f,
 				{ "Rested", "Rested", "Getting Sleepy", "Sleepy", "Sleepy", "Sleepy" }),
+			SimpleNeedsExpandedSource("Sleepy", "Sleep", kLastRest, 0x000007, 0x000011, 0x000012, 0x00001F, 18.0f, 16.0f,
+				{ "Rested", "Rested", "Getting Sleepy", "Sleepy", "Sleepy", "Sleepy" }),
 			RndSource("RND_SleepPoints", 0x00BAC2, { 15, 30, 60, 120, 240 },
 				{ "Not Tired", "Not Tired", "Slightly Tired", "Tired", "Very Tired", "Exhausted" }),
 		};
@@ -2207,6 +2329,8 @@ namespace Needs
 			TearsOfKyneSource(),
 			ImmersiveNeedsSource("thirst", 0x83D, "Thirsty", 3, 0x9F0, "Dehydrated", "Quenched", inThirstEnabled, 0.0f,
 				"Immersive Needs has thirst switched off."),
+			SimpleNeedsExpandedSource("Thirsty", "Thirst", kLastDrink, 0x000020, 0x000013, 0x000014, 0x00001C, 8.0f, 6.0f,
+				{ "Quenched", "Quenched", "Getting Thirsty", "Thirsty", "Thirsty", "Thirsty" }),
 			RndSource("RND_ThirstPoints", 0x002E07, { 20, 40, 80, 160, 240 },
 				{ "Quenched", "Quenched", "Slightly Thirsty", "Thirsty", "Very Thirsty", "Dehydrated" }),
 		};

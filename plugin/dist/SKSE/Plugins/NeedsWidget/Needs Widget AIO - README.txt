@@ -4,8 +4,8 @@ by mxdie (Tom)
 Shows your needs as icons on the HUD, from whichever needs mods you have:
 Survival Mode, SunHelm, Last Seed, iNeed, Frostfall, Stress and Fear, Dirt and
 Blood, Bathing in Skyrim, Keep It Clean, DVSMP Survival Tweaks, Tears of Kyne,
-Immersive Needs, Realistic Needs and Diseases, Super Simple Needs, Frostbite and
-Drink It Off, plus encumbrance from the game.
+Immersive Needs, Realistic Needs and Diseases, Super Simple Needs, Simple Needs
+Expanded, Frostbite and Drink It Off, plus encumbrance from the game.
 A need with no mod behind it just doesn't show.
 
 It also comes with ten icons that aren't needs:
@@ -24,6 +24,8 @@ It also comes with ten icons that aren't needs:
                 itself, one icon each, the number is the stat.
   Temperature   how cold the air is: Survival Mode (with or without Survival Mode
                 Improved) or Frostfall. Cold is how cold you are; this is the weather.
+  Homesick      how long since you were last in a player home, from Simple Needs
+                Expanded. Hidden until it has seen you in one.
 
 Other mods can add icons of their own, one ini file each in
 SKSE/Plugins/NeedsWidget/Icons/. They show in the same widget and menu.
@@ -72,6 +74,7 @@ widget can tint them, and given a soft dark edge.
   Agility         Sprint                  by Lorc        https://game-icons.net/1x1/lorc/sprint.html
   Intelligence    Brain                   by Lorc        https://game-icons.net/1x1/lorc/brain.html
   Temperature     Thermometer scale       by Lorc        https://game-icons.net/1x1/lorc/thermometer-scale.html
+  Homesick        House                   by Delapouite  https://game-icons.net/1x1/delapouite/house.html
 
 
 CODE

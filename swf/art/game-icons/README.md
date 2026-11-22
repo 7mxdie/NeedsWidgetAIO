@@ -29,6 +29,7 @@ page and in the release README.
 | Agility (extra icon) | `lorc_sprint.svg` | Lorc | https://game-icons.net/1x1/lorc/sprint.html |
 | Intelligence (extra icon) | `lorc_brain.svg` | Lorc | https://game-icons.net/1x1/lorc/brain.html |
 | Temperature (extra icon) | `lorc_thermometer-scale.svg` | Lorc | https://game-icons.net/1x1/lorc/thermometer-scale.html |
+| Homesick (extra icon) | `delapouite_house.svg` | Delapouite | https://game-icons.net/1x1/delapouite/house.html |
 
 Files are unchanged from https://github.com/game-icons/icons (master, fetched
 2026-10-21). Picked by Tom from candidate sheets in `../../../art-options/` (thirst and wetness
@@ -41,3 +42,6 @@ modified.
 
 The four extra-icon glyphs were fetched from the same repository on 2026-10-23 and picked by
 Claude from `../../../art-options/extra-icons.png`, for Tom to confirm.
+
+The Homesick glyph was fetched from the same repository on 2026-11-22 and picked by Claude
+from Delapouite's house, family house, hut and village, for Tom to confirm.

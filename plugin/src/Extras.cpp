@@ -280,8 +280,12 @@ namespace Extras
 				if (s.plugins.empty()) {
 					s.plugins = { "quantLanternsWithFuel.esp" };
 				}
+			} else if (s.type == "simpleneedshome") {
+				if (s.plugins.empty()) {
+					s.plugins = { "Super Simple Needs.esp" };
+				}
 			} else {
-				problem = std::format("sType {} is not one this build knows (Global, FactionRank, ActorValue, Papyrus, QuestFunction, StorageFloat, Spells, MagicEffect, ScriptVariable, Wounds, SLOVE, MiniNeeds, OCum, QuickLightFuel)", s.type);
+				problem = std::format("sType {} is not one this build knows (Global, FactionRank, ActorValue, Papyrus, QuestFunction, StorageFloat, Spells, MagicEffect, ScriptVariable, Wounds, SLOVE, MiniNeeds, OCum, QuickLightFuel, SimpleNeedsHome)", s.type);
 			}
 			if (problem.empty() && s.maxFormID != 0 && s.maxEditorID.empty() && s.plugins.empty()) {
 				problem = "iMaxFormID needs sPlugin";
