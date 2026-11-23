@@ -3,10 +3,11 @@
 // Reads what the icons show, straight from the game. Each need can come from
 // several mods; the first one in the list that is running feeds the icon
 // (TEST7, Tom: "coverage for every need you find in modded Skyrim"):
-//   hunger      - Survival Mode (+ Survival Mode Improved), SunHelm, Last Seed, iNeed
+//   hunger      - Survival Mode (+ Survival Mode Improved), SunHelm, Last Seed, iNeed, Simple Needs Expanded
 //   cold        - Survival Mode (+ SMI), SunHelm, Frostfall
-//   fatigue     - Survival Mode (+ SMI), SunHelm, Last Seed, iNeed
-//   thirst      - SunHelm, Last Seed, iNeed, DVSMP Survival Tweaks (LoreRim's thirst), Tears of Kyne
+//   fatigue     - Survival Mode (+ SMI), SunHelm, Last Seed, iNeed, Simple Needs Expanded
+//   thirst      - SunHelm, Last Seed, iNeed, DVSMP Survival Tweaks (LoreRim's thirst), Tears of Kyne,
+//                 Simple Needs Expanded
 //   wetness     - Frostfall
 //   stress      - Stress and Fear
 //   dirt        - Dirt and Blood, Bathing in Skyrim, Keep It Clean
@@ -75,7 +76,13 @@ namespace Needs
 	const char* Name(Id a_id);         // "Hunger" ..., also its ini section and page name; "" for an empty slot
 	std::string WhyHidden(Id a_id);    // why it is unavailable, for the settings page
 	std::string FineMeaning(Id a_id);  // what "Hide when fine" counts as fine, in the current mod's words
-	int         FineUpTo(Id a_id);     // "Hide when fine" hides stages up to this one
+	int         FineUpTo(Id a_id);     // "Hide when fine" hides stages up to this one: the player's iFineUpTo, else the icon's own
+	int         DefaultFineUpTo(Id a_id);  // the icon's own (2.10)
+	std::array<const char*, 6> StageNames(Id a_id);
+	// The picture an icon shows unless the player picks another (3.0): icons/<name>.swf.
+	std::string DefaultArt(Id a_id);
+	// The picture it shows now: the player's sArt, else DefaultArt.
+	std::string Art(Id a_id);  // the stage names of the mod feeding it now (or the first installed)
 	int         HideFrom(Id a_id);     // iHideFrom: the stage its own checkbox hides from, -1 if it has none
 	std::string HideFromText(Id a_id);
 }

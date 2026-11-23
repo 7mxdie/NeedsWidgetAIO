@@ -11,6 +11,7 @@ namespace Hotkey
 	void        Init();                 // kDataLoaded
 	std::string KeyName(int a_code);    // the key's name on this keyboard
 	int         TakePresses();          // presses in play since the last call
+	bool        Held();                 // the key is down now (3.0: hold to peek)
 
 	// The page's "press a key" button
 	void StartCapture();

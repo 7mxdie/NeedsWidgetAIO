@@ -24,6 +24,7 @@ TREES = [
     "plugin/lib/SKSEMenuFramework",
     "swf/src",
     "swf/art",
+    "swf/styles",
     "swf/tests",
 ]
 FILES = [
@@ -77,6 +78,8 @@ def main():
         for root, dirs, names in os.walk(os.path.join(HERE, tree)):
             dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS)
             for name in sorted(names):
+                if name.endswith((".orig", ".rej", ".pyc", ".log")):
+                    continue  # leftovers from applying a patch by hand (3.0.0), never source
                 path = os.path.join(root, name)
                 files[os.path.relpath(path, HERE).replace(os.sep, "/")] = path
     for f in FILES:

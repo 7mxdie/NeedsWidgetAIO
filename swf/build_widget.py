@@ -28,6 +28,9 @@ import tempfile
 
 import build_icons
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "styles"))
+import build_styles  # noqa: E402
+
 FFDEC = r"C:\Program Files (x86)\FFDec\ffdec-cli.exe"
 RUFFLE = r"C:\Users\mxdie\Documents\AI\Tools\ruffle\ruffle.exe"
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -36,6 +39,34 @@ SRC = os.path.join(HERE, "src", "widget.as")
 OUT_DIR = os.path.join(HERE, "build", "Interface", "NeedsWidget")
 OUT = os.path.join(OUT_DIR, "widget.swf")
 SCRIPT_PATH = "\\frame_1\\DoAction"
+
+
+# 3.0 icon styles (tests/probe_widget.as, stepShapes). Lines are 2 wide, so a box reaches 1 past them.
+SHAPE_EXPECT = [
+    "NWPROBE shape trace half=-1,-11,11,-9 art=20,40,60",
+    "NWPROBE shape trace full=-1,-11,11,1",
+    "NWPROBE shape frame icons/ w=51 tint=100,100,100",
+    "NWPROBE shape signal frame=100,40,20 meterW=0",
+    "NWPROBE shape steps stage3=-1,-1,5,9 art=100,40,20",
+    "NWPROBE shape steps share=0,0,4,6",
+    "NWPROBE shape ring y=-6 box=-20,-26,20,14",
+    "NWPROBE shape bar centre=-5,20,5,22",
+    "NWPROBE shape level=-40,0,40,11 mask=true",
+    "NWPROBE shape hollow art2=true top=0 art=20,20,20 fill=100,60,40 others=true",
+    "NWPROBE shape hollow empty art2=false",
+    "NWPROBE shape back art2=false unmasked=true art=100,60,40",
+    # 3.0 extras: pips (stage 2 of 5 lit, colour 0xFFFFFF in the probe's scheme), trend arrows, callout, soft flash.
+    "NWPROBE pips box=-16.6,27.4,16.6,32.6 lit=100,100,100",
+    "NWPROBE pips off w=0",
+    "NWPROBE trend worse box=19.5,-33.5,32.5,-23.5",
+    "NWPROBE trend better box=19.5,-22.5,32.5,-12.5",
+    "NWPROBE trend none w=0",
+    "NWPROBE callout on=true text=Famished color=ffffff edge=0 above=true top=true",
+    "NWPROBE peek on=true lines=Hunger: Peckish/Cold: Warm third=false box=true",
+    "NWPROBE peek off=false first=false",
+    "NWPROBE flash soft peak=true",
+    "NWPROBE callout over on=false",
+]
 
 
 def probe_expect(bounds):
@@ -86,6 +117,7 @@ def probe_expect(bounds):
         "NWPROBE flash over rb=0",
         "NWPROBE extra art 10 icons/ bounds=" + bounds["cold"],
         "NWPROBE extra again loads=1",
+    ] + SHAPE_EXPECT + [
         "NWPROBE done",
     ]
 
@@ -208,6 +240,7 @@ def compile_as(src, out, work):
 
 def main():
     bounds = build_icons.build()
+    build_styles.main()  # 3.0 icon styles: frame_<key>.swf and Styles/<key>.ini
     work = tempfile.mkdtemp(prefix="nw_swf_")
     try:
         os.makedirs(OUT_DIR, exist_ok=True)
@@ -244,7 +277,8 @@ def probe(work, bounds):
     for sub in ("icons", os.path.join("NeedsWidget", "icons")):
         os.makedirs(os.path.join(stage, sub), exist_ok=True)
     shutil.copy(OUT, os.path.join(stage, "widget.swf"))
-    for name in ("hunger", "cold", "fatigue", "stress", "thirst", "wetness", "vitality", "disease", "frame_ring", "frame_bar"):
+    for name in ("hunger", "cold", "fatigue", "stress", "thirst", "wetness", "vitality", "disease", "frame_ring", "frame_bar",
+                 "frame_nordic_shield", "frame_signal"):
         shutil.copy(os.path.join(icons, name + ".swf"), os.path.join(stage, "icons"))
     shutil.copy(os.path.join(icons, "dirt.swf"), os.path.join(stage, "NeedsWidget", "icons"))
     # encumbrance.swf is left out on purpose: the widget must fall back to a dot.

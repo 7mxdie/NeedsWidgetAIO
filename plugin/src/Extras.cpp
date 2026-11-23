@@ -178,6 +178,7 @@ namespace Extras
 			}
 			s.negativeRanks = ReadFloat(a_file, section, L"bNegativeRanks").value_or(0.0f) != 0.0f;
 			s.playerSex = std::clamp(static_cast<int>(ReadFloat(a_file, section, L"iPlayerSex").value_or(-1.0f)), -1, 1);
+			s.rank = std::clamp(static_cast<int>(ReadFloat(a_file, section, L"iRank").value_or(0.0f)), 0, 64);
 			for (std::size_t k = 0; k < s.stages.size(); ++k) {
 				s.stages[k] = Read(a_file, section, std::format(L"sStage{}", k).c_str());
 			}
@@ -276,12 +277,22 @@ namespace Extras
 				if (s.plugins.empty()) {
 					s.plugins = { "OCum.esp" };
 				}
+			} else if (s.type == "diseaserank") {
+				if (s.rank < 2) {
+					problem = "sType DiseaseRank needs iRank 2 or more";
+				}
+			} else if (s.type == "werewolftime") {
+				// vanilla records only
 			} else if (s.type == "quicklightfuel") {
 				if (s.plugins.empty()) {
 					s.plugins = { "quantLanternsWithFuel.esp" };
 				}
+			} else if (s.type == "simpleneedshome") {
+				if (s.plugins.empty()) {
+					s.plugins = { "Super Simple Needs.esp" };
+				}
 			} else {
-				problem = std::format("sType {} is not one this build knows (Global, FactionRank, ActorValue, Papyrus, QuestFunction, StorageFloat, Spells, MagicEffect, ScriptVariable, Wounds, SLOVE, MiniNeeds, OCum, QuickLightFuel)", s.type);
+				problem = std::format("sType {} is not one this build knows (Global, FactionRank, ActorValue, Papyrus, QuestFunction, StorageFloat, Spells, MagicEffect, ScriptVariable, Wounds, SLOVE, MiniNeeds, OCum, QuickLightFuel, WerewolfTime, SimpleNeedsHome, DiseaseRank)", s.type);
 			}
 			if (problem.empty() && s.maxFormID != 0 && s.maxEditorID.empty() && s.plugins.empty()) {
 				problem = "iMaxFormID needs sPlugin";

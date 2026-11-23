@@ -3,7 +3,7 @@
 // vitality, disease), in the order of the dll's need ids, then eight slots for
 // extra icons from addon files, whose pictures the dll names with setArt.
 //
-// NeedsWidget.dll drives everything through setStyle, setNumbers, setLayout,
+// NeedsWidget.dll drives everything through setShape, setStyle, setNumbers, setLayout,
 // setIcon, setShown and setArt. The only thing that runs on its own is the pulse on an icon at its
 // worst stage (pulseTick, every frame).
 //
@@ -81,17 +81,216 @@ function stageColor(stage)
 	return stageColors[stage];
 }
 
+// 3.0 icon styles (swf/styles, docs/STYLES.md). setShape tells the widget how a style's meter
+// is drawn; setStyle's look "shape" then uses it. Numbers come in icon units, centred on 0,0.
+// A list of points is "x,y x,y ..."; several lists are split by "|" (";" starts an ini comment).
+function parsePoints(text)
+{
+	var out = [];
+	var items = text.split(" ");
+	for (var k = 0; k < items.length; k++)
+	{
+		var xy = items[k].split(",");
+		if (xy.length == 2)
+		{
+			out.push({x: Number(xy[0]), y: Number(xy[1])});
+		}
+	}
+	return out;
+}
+
+function parseNumbers(text)
+{
+	var out = text.split(",");
+	for (var k = 0; k < out.length; k++)
+	{
+		out[k] = Number(out[k]);
+	}
+	return out;
+}
+
+function fillPoints(mc, p, color, alpha)
+{
+	mc.beginFill(color, alpha);
+	mc.moveTo(p[0].x, p[0].y);
+	for (var n = 1; n < p.length; n++)
+	{
+		mc.lineTo(p[n].x, p[n].y);
+	}
+	mc.lineTo(p[0].x, p[0].y);
+	mc.endFill();
+}
+
+// kind: ring, trace, bar, steps, level, glyph or none. width: the line's width (steps: 0 = filled
+// shapes). geometry: ring "cx,cy,r,start" (start in degrees clockwise from 12 o'clock), bar
+// "x,y,length,height", trace a list of points, steps and level several. by: bar "left" or
+// "centre", steps "stage" or "share". alpha: level's fill. glyph: a fixed glyph colour, or -1 for
+// the stage colour. tintFrame: the frame takes the stage colour (Signal).
+function setShape(kind, width, geometry, by, alpha, glyph, tintFrame)
+{
+	shape = {kind: kind, w: width, by: by, alpha: alpha, glyph: glyph, tintFrame: tintFrame, nums: [], parts: [], length: 0, top: 0, bottom: 0};
+	if (kind == "ring" || kind == "bar")
+	{
+		shape.nums = parseNumbers(geometry);
+	}
+	else if (kind == "trace" || kind == "steps" || kind == "level")
+	{
+		var lists = geometry.split("|");
+		for (var k = 0; k < lists.length; k++)
+		{
+			shape.parts.push(parsePoints(lists[k]));
+		}
+	}
+	if (kind == "trace")
+	{
+		var p = shape.parts[0];
+		for (var n = 1; n < p.length; n++)
+		{
+			var dx = p[n].x - p[n - 1].x;
+			var dy = p[n].y - p[n - 1].y;
+			shape.length += Math.sqrt(dx * dx + dy * dy);
+		}
+	}
+	if (kind == "level")
+	{
+		shape.top = 1000;
+		shape.bottom = -1000;
+		for (var q = 0; q < shape.parts.length; q++)
+		{
+			for (var r = 0; r < shape.parts[q].length; r++)
+			{
+				shape.top = Math.min(shape.top, shape.parts[q][r].y);
+				shape.bottom = Math.max(shape.bottom, shape.parts[q][r].y);
+			}
+		}
+	}
+	for (var i = 0; i < ICON_COUNT; i++)
+	{
+		var c = icons[i].clip;
+		c.meter.setMask(null);
+		var mask = c.createEmptyMovieClip("meterMask", 12);
+		if (kind == "level")
+		{
+			for (var s = 0; s < shape.parts.length; s++)
+			{
+				fillPoints(mask, shape.parts[s], 0xFFFFFF, 100);
+			}
+			c.meter.setMask(mask);
+		}
+		if (kind == "glyph" && icons[i].art2Name != ICON_NAMES[i])
+		{
+			loadPicture(i, "art2", 0);
+		}
+	}
+}
+
+function linePoints(mc, p)
+{
+	mc.moveTo(p[0].x, p[0].y);
+	for (var n = 1; n < p.length; n++)
+	{
+		mc.lineTo(p[n].x, p[n].y);
+	}
+}
+
+// The part of a style's meter that shows at fraction f.
+function drawShapeMeter(o, m, f, color)
+{
+	var k = shape.kind;
+	var g = shape.nums;
+	if (k == "ring")
+	{
+		m._x = g[0];
+		m._y = g[1];
+		var a0 = g[3] * Math.PI / 180;
+		drawBand(m, g[2] + shape.w / 2, g[2] - shape.w / 2, a0, a0 + Math.PI * 2 * f, color, 100);
+	}
+	else if (k == "bar")
+	{
+		var length = g[2] * f;
+		drawRect(m, shape.by == "centre" ? g[0] + (g[2] - length) / 2 : g[0], g[1], length, g[3], color, 100);
+	}
+	else if (k == "trace")
+	{
+		var p = shape.parts[0];
+		var left = shape.length * f;
+		m.lineStyle(shape.w, color, 100, false, "normal", "round", "round");
+		m.moveTo(p[0].x, p[0].y);
+		for (var n = 1; n < p.length && left > 0; n++)
+		{
+			var dx = p[n].x - p[n - 1].x;
+			var dy = p[n].y - p[n - 1].y;
+			var seg = Math.sqrt(dx * dx + dy * dy);
+			var t = seg > left ? left / seg : 1;
+			m.lineTo(p[n - 1].x + dx * t, p[n - 1].y + dy * t);
+			left -= seg;
+		}
+		m.lineStyle();
+	}
+	else if (k == "steps")
+	{
+		var parts = shape.parts;
+		var share = o.fraction > 1 ? 1 : (o.fraction < 0 ? 0 : o.fraction);
+		var lit = shape.by == "stage" ? Math.ceil(o.stage * parts.length / 5) : Math.round(share * parts.length);
+		for (var s = 0; s < lit && s < parts.length; s++)
+		{
+			if (shape.w > 0)
+			{
+				m.lineStyle(shape.w, color, 100, false, "normal", "round", "round");  // round like the frame's own unlit pieces
+				linePoints(m, parts[s]);
+				m.lineStyle();
+			}
+			else
+			{
+				fillPoints(m, parts[s], color, 100);
+			}
+		}
+	}
+	else if (k == "level")
+	{
+		var y = shape.bottom - (shape.bottom - shape.top) * f;
+		drawRect(m, -40, y, 80, shape.bottom - y + 1, color, shape.alpha);
+	}
+	else if (k == "glyph")
+	{
+		// Hollow: a second copy of the glyph in the stage colour, shown from the bottom up.
+		var mask = o.clip.art2Mask;
+		mask.clear();
+		var top = style.artY - style.artSize / 2;
+		var level = top + style.artSize * (1 - f);
+		drawRect(mask, -40, level, 80, top + style.artSize - level + 1, 0xFFFFFF, 100);
+		o.clip.art2.setMask(mask);
+		o.clip.art2._visible = f > 0;
+	}
+}
+
 function drawMeter(i)
 {
 	var o = icons[i];
 	var m = o.clip.meter;
 	m.clear();
+	m._x = 0;
+	m._y = 0;
+	o.clip.art2._visible = false;
 	var f = o.fraction > 1 ? 1 : o.fraction;
-	if (f <= 0 || style.look == "icon")
+	if (style.look == "shape" && shape.kind == "steps")
+	{
+		f = 1;  // steps light by stage or share in drawShapeMeter, even at 0
+	}
+	if (f < 0)
+	{
+		f = 0;
+	}
+	if ((f <= 0 && !(style.look == "shape" && shape.kind == "glyph")) || style.look == "icon")
 	{
 		return;
 	}
 	var color = stageColor(o.stage);
+	if (style.look == "shape")
+	{
+		drawShapeMeter(o, m, f, color);
+		return;
+	}
 	if (style.look == "ring")
 	{
 		var half = style.ringWidth / 2;
@@ -119,12 +318,33 @@ function drawMeter(i)
 
 // Multiplies the glyph's colours by the stage colour: white art comes out in
 // exactly that colour, the dark glow round it stays dark.
+// The glyph's colour: a style's own fixed colour, or the stage's (white if the player
+// switched Colour the icons off).
+function artColor(o)
+{
+	if (style.look == "shape" && shape.glyph >= 0)
+	{
+		return shape.glyph;
+	}
+	return style.tintArt ? stageColor(o.stage) : 0xFFFFFF;
+}
+
+function multiply(mc, c, boost)
+{
+	// The frame clip only exists once its picture starts loading (TEST29 log: "Invalid movie clip path").
+	if (mc == undefined)
+	{
+		return;
+	}
+	new Color(mc).setTransform({ra: (c >> 16 & 255) / 2.55, ga: (c >> 8 & 255) / 2.55, ba: (c & 255) / 2.55, aa: 100, rb: boost, gb: boost, bb: boost, ab: 0});
+}
+
 function applyTint(i)
 {
 	var o = icons[i];
-	var c = style.tintArt ? stageColor(o.stage) : 0xFFFFFF;
-	var t = new Color(o.clip.art);
-	t.setTransform({ra: (c >> 16 & 255) / 2.55, ga: (c >> 8 & 255) / 2.55, ba: (c & 255) / 2.55, aa: 100, rb: 0, gb: 0, bb: 0, ab: 0});
+	multiply(o.clip.art, artColor(o), 0);
+	multiply(o.clip.art2, stageColor(o.stage), 0);
+	multiply(o.clip.frame, style.look == "shape" && shape.tintFrame ? stageColor(o.stage) : 0xFFFFFF, 0);
 	o.clip.label.textColor = numberStyle.tint ? stageColor(o.stage) : 0xFFFFFF;
 }
 
@@ -182,10 +402,9 @@ function syncEdge(i)
 	}
 }
 
-function placeArt(i)
+function placeClip(i, art)
 {
 	var o = icons[i];
-	var art = o.clip.art;
 	if (o.source == "fallback")
 	{
 		art._xscale = 100;
@@ -200,6 +419,12 @@ function placeArt(i)
 	art._y = style.artY - style.artSize / 2;
 }
 
+function placeArt(i)
+{
+	placeClip(i, icons[i].clip.art);
+	placeClip(i, icons[i].clip.art2);
+}
+
 function pictureLoaded(i, kind, attempt, path)
 {
 	var o = icons[i];
@@ -210,11 +435,18 @@ function pictureLoaded(i, kind, attempt, path)
 		applyTint(i);
 		artDone++;
 	}
+	else if (kind == "art2")
+	{
+		placeArt(i);
+		applyTint(i);
+		drawMeter(i);
+	}
 	else
 	{
 		o.frameSource = ART_PATHS[attempt];
 		o.clip.frame._x = -ART_CANVAS / 2;
 		o.clip.frame._y = -ART_CANVAS / 2;
+		applyTint(i);
 		frameDone++;
 	}
 	trace("NeedsWidget: loaded " + path);
@@ -227,7 +459,17 @@ function loadPicture(i, kind, attempt)
 {
 	var o = icons[i];
 	var file = kind == "frame" ? style.frame : ICON_NAMES[i];
-	var target = o.clip.createEmptyMovieClip(kind, kind == "frame" ? 1 : 3);
+	var target = o.clip.createEmptyMovieClip(kind, kind == "frame" ? 1 : (kind == "art" ? 3 : 11));
+	if (kind == "art2")
+	{
+		// Hollow's coloured copy: loaded only for that style, never a fallback dot.
+		o.art2Name = file;
+		target._visible = false;
+		if (file == "" || attempt >= ART_PATHS.length)
+		{
+			return;
+		}
+	}
 	if (kind == "frame" && (file == undefined || file == ""))
 	{
 		o.frameSource = "none";
@@ -288,9 +530,14 @@ function setArt(i, name)
 	ICON_NAMES[i] = name;
 	icons[i].source = undefined;
 	loadPicture(i, "art", 0);
+	if (shape.kind == "glyph")
+	{
+		loadPicture(i, "art2", 0);
+	}
 }
 
-// look: "ring", "bar" or "icon". frame: picture name in icons/, "" for none.
+// look: "ring", "bar", "icon", "fill", or "shape" for a 3.0 style (setShape first). frame: picture
+// name in icons/, "" for none.
 // Sizes are in icon units: the icon is 64 across, centred on 0,0.
 // c0-c5 are the stage colours, best to worst, already picked from the player's
 // colour scheme by the dll. pulse: fade an icon at its worst stage in and out.
@@ -301,6 +548,12 @@ function setStyle(look, frame, artSize, artY, ringRadius, ringWidth, barLeft, ba
 	stageColors = [c0, c1, c2, c3, c4, c5];
 	for (var i = 0; i < ICON_COUNT; i++)
 	{
+		if (look != "shape")
+		{
+			// A style's liquid mask must not cut a classic look's meter.
+			icons[i].clip.meter.setMask(null);
+			icons[i].clip.meterMask.clear();
+		}
 		if (reload)
 		{
 			loadPicture(i, "frame", 0);
@@ -397,6 +650,11 @@ function setIcon(i, visible, fraction, stage, label)
 		o.stage = stage;
 		drawMeter(i);
 		applyTint(i);
+		drawPips(i);
+		if (o.trend != 0 && o.trend != undefined)
+		{
+			setTrend(i, o.trend);
+		}
 	}
 	if (o.clip.label.text != label)
 	{
@@ -421,10 +679,129 @@ function setFade(alphaPct, ms)
 }
 
 // TEST10: a need just got worse. Its glyph flashes bright and settles back over
-// FLASH_MS. pulseTick runs it.
-function flash(i)
+// FLASH_MS. pulseTick runs it. kind 1 (3.0, Flash when better): a softer flash.
+function flash(i, kind)
 {
 	icons[i].flashAt = getTimer();
+	icons[i].flashPeak = kind == 1 ? FLASH_SOFT : FLASH_BRIGHT;
+}
+
+// 3.0 Stage callout: the new stage's name beside the icon for ms, then it fades.
+// The new stage's name for ms (Tom, TEST33: not seen; beside the icon, the next icon in a row
+// covered it). Its own layer above every icon: over the icon in a row or free layout, beside it
+// in a column (side true), kept inside the screen, with a dark edge like the numbers.
+function callout(i, text, ms, side)
+{
+	var o = icons[i];
+	var g = calls["call" + i];
+	var a = visibleArea();
+	var half = 32 * o.clip._xscale / 100;
+	for (var e = 0; e < 5; e++)
+	{
+		var t = g["t" + e];
+		t.text = text;
+		t.textColor = e < 4 ? 0x000000 : stageColor(o.stage);
+	}
+	var w = g.t4.textWidth + 6;
+	var gx = o.clip._x - w / 2;
+	var gy = o.clip._y - half - 26;
+	if (gy < a.y + 2)
+	{
+		gy = o.clip._y + half + 4;
+	}
+	if (side == true)
+	{
+		gx = o.clip._x + half + 6;
+		gy = o.clip._y - 11;
+	}
+	if (side == true && gx + w > a.x + a.w)
+	{
+		gx = o.clip._x - half - 6 - w;
+	}
+	g._x = Math.max(a.x + 2, Math.min(gx, a.x + a.w - w - 2));
+	g._y = gy;
+	g._visible = true;
+	g._alpha = 100;
+	o.callAt = getTimer();
+	o.callMs = ms;
+}
+
+function calloutTick(i, now)
+{
+	var o = icons[i];
+	if (o.callAt == undefined)
+	{
+		return;
+	}
+	var left = o.callMs - (now - o.callAt);
+	var g = calls["call" + i];
+	if (left <= 0)
+	{
+		o.callAt = undefined;
+		g._visible = false;
+		return;
+	}
+	g._alpha = left < 500 ? left / 5 : 100;
+}
+
+// 3.0 Stage pips, for colour-blind players: five small diamonds under each icon at y, one
+// lit per stage, so the stage reads by count as well as colour.
+function drawPips(i)
+{
+	var o = icons[i];
+	var p = o.clip.pips;
+	p.clear();
+	if (!pipsOn)
+	{
+		return;
+	}
+	for (var n = 0; n < 5; n++)
+	{
+		var x = (n - 2) * 7;
+		var lit = o.stage > n;
+		p.beginFill(lit ? stageColor(o.stage) : 0x000000, lit ? 100 : 45);
+		p.moveTo(x, pipsY - 2.6);
+		p.lineTo(x + 2.6, pipsY);
+		p.lineTo(x, pipsY + 2.6);
+		p.lineTo(x - 2.6, pipsY);
+		p.lineTo(x, pipsY - 2.6);
+		p.endFill();
+	}
+}
+
+function setPips(on, y)
+{
+	pipsOn = on;
+	pipsY = y;
+	for (var i = 0; i < ICON_COUNT; i++)
+	{
+		drawPips(i);
+	}
+}
+
+// 3.0 Trend arrow: dir 1 the need is getting worse (points up), -1 better (down), 0 none.
+function setTrend(i, dir)
+{
+	var o = icons[i];
+	var t = o.clip.trend;
+	t.clear();
+	o.trend = dir;
+	if (dir == 0)
+	{
+		return;
+	}
+	var c = stageColor(o.stage);
+	var y = dir > 0 ? -27 : -19;
+	t.beginFill(0x000000, 70);
+	t.moveTo(26, y - dir * 6.5);
+	t.lineTo(32.5, y + dir * 3.5);
+	t.lineTo(19.5, y + dir * 3.5);
+	t.endFill();
+	t.beginFill(c, 100);
+	t.moveTo(26, y - dir * 4.5);
+	t.lineTo(30.5, y + dir * 2.3);
+	t.lineTo(21.5, y + dir * 2.3);
+	t.endFill();
 }
 
 function flashTick(i, now)
@@ -441,9 +818,9 @@ function flashTick(i, now)
 		applyTint(i);
 		return;
 	}
-	var c = style.tintArt ? stageColor(o.stage) : 0xFFFFFF;
-	var boost = FLASH_BRIGHT * (1 - t);
-	new Color(o.clip.art).setTransform({ra: (c >> 16 & 255) / 2.55, ga: (c >> 8 & 255) / 2.55, ba: (c & 255) / 2.55, aa: 100, rb: boost, gb: boost, bb: boost, ab: 0});
+	var boost = (o.flashPeak == undefined ? FLASH_BRIGHT : o.flashPeak) * (1 - t);
+	multiply(o.clip.art, artColor(o), boost);
+	multiply(o.clip.art2, stageColor(o.stage), boost);
 }
 
 // Every frame: an icon at its worst stage fades its glyph and meter down and back
@@ -469,8 +846,85 @@ function pulseTick()
 		var o = icons[i];
 		var a = style.pulse && o.stage >= 5 ? low : 100;
 		o.clip.art._alpha = a;
+		o.clip.art2._alpha = a;
 		o.clip.meter._alpha = a;
 		flashTick(i, now);
+		calloutTick(i, now);
+	}
+}
+
+// 3.0 Hold to peek (Tom, TEST31: the stage names under the icons ran into each other): a list
+// beside the widget, one line per icon in its stage colour. lines: "text|stage" items split by
+// newlines, "" to hide it. It sits above the icons, or below them when there is no room above.
+function setPeek(lines)
+{
+	var items = lines == "" || lines == undefined ? [] : lines.split("\n");
+	var w = 0;
+	for (var n = 0; n < PEEK_MAX; n++)
+	{
+		var t = peek["line" + n];
+		if (n < items.length)
+		{
+			var bar = items[n].lastIndexOf("|");
+			t.text = items[n].substr(0, bar);
+			t.textColor = stageColor(Number(items[n].substr(bar + 1)));
+			t._visible = true;
+			if (t.textWidth > w)
+			{
+				w = t.textWidth;
+			}
+		}
+		else
+		{
+			t.text = "";
+			t._visible = false;
+		}
+	}
+	peek.clear();
+	peek._visible = items.length > 0;
+	if (items.length == 0)
+	{
+		return;
+	}
+	var minX = 100000;
+	var minY = 100000;
+	var maxY = -100000;
+	for (var i = 0; i < ICON_COUNT; i++)
+	{
+		var c = icons[i].clip;
+		if (c._visible)
+		{
+			var half = 32 * c._xscale / 100;
+			minX = Math.min(minX, c._x - half);
+			minY = Math.min(minY, c._y - half);
+			maxY = Math.max(maxY, c._y + half);
+		}
+	}
+	var a = visibleArea();
+	if (minX > 99999)
+	{
+		minX = a.x + 20;
+		minY = a.y + a.h / 2;
+		maxY = minY;
+	}
+	var h = items.length * PEEK_LINE;
+	var top = minY - h - 18;
+	if (top < a.y + 6)
+	{
+		top = maxY + 22;
+	}
+	var left = Math.max(a.x + 6, Math.min(minX, a.x + a.w - w - 18));
+	peek.beginFill(0x000000, 62);
+	peek.moveTo(left - 8, top - 5);
+	peek.lineTo(left + w + 12, top - 5);
+	peek.lineTo(left + w + 12, top + h + 5);
+	peek.lineTo(left - 8, top + h + 5);
+	peek.lineTo(left - 8, top - 5);
+	peek.endFill();
+	for (var k = 0; k < items.length; k++)
+	{
+		peek["line" + k]._x = left - 2;
+		peek["line" + k]._y = top + k * PEEK_LINE - 2;
 	}
 }
 
@@ -500,10 +954,14 @@ var style = {look: "ring", frame: undefined, artSize: 42, artY: 0, ringRadius: 2
 var stageColors = [0xECE9E2, 0xE8DDB0, 0xE8C870, 0xE8A060, 0xD9503F, 0xFF2E1F];
 var artDone = 0;
 var frameDone = 0;
+var shape = {kind: "", w: 0, by: "", alpha: 100, glyph: -1, tintFrame: false, nums: [], parts: [], length: 0, top: 0, bottom: 0};
 
 var LABEL_SIZE = 16;
 var FLASH_MS = 700;
 var FLASH_BRIGHT = 180;  // colour offset added at the start of a flash, out of 255
+var FLASH_SOFT = 90;     // 3.0 Flash when better
+var pipsOn = false;
+var pipsY = 30;
 var fade = {from: 100, to: 100, start: 0, ms: 0};
 var LABEL_X = -120;  // wide enough for a stage name like Severely Dehydrated
 var LABEL_W = 240;
@@ -516,6 +974,11 @@ labelFormat.font = "$EverywhereMediumFont";
 labelFormat.size = LABEL_SIZE;
 labelFormat.color = 0xFFFFFF;
 labelFormat.align = "center";
+var callFormat = new TextFormat();
+callFormat.font = "$EverywhereMediumFont";
+callFormat.size = 15;
+callFormat.color = 0xFFFFFF;
+callFormat.align = "left";
 
 var needs = this.createEmptyMovieClip("needs", 10);
 var icons = [];
@@ -523,6 +986,8 @@ for (var n = 0; n < ICON_COUNT; n++)
 {
 	var clip = needs.createEmptyMovieClip("icon" + n, n + 1);
 	clip.createEmptyMovieClip("meter", 2);
+	clip.createEmptyMovieClip("art2", 11);
+	clip.createEmptyMovieClip("art2Mask", 13);
 	for (var e = 0; e < 4; e++)
 	{
 		clip.createTextField("edge" + e, 4 + e, LABEL_X + EDGE_X[e], 31 + EDGE_Y[e], LABEL_W, LABEL_H);
@@ -534,6 +999,8 @@ for (var n = 0; n < ICON_COUNT; n++)
 		t.text = "";
 		t._visible = false;
 	}
+	clip.createEmptyMovieClip("pips", 14);
+	clip.createEmptyMovieClip("trend", 15);
 	clip.createTextField("label", 8, LABEL_X, 31, LABEL_W, LABEL_H);
 	clip.label.embedFonts = true;
 	clip.label.selectable = false;
@@ -541,8 +1008,37 @@ for (var n = 0; n < ICON_COUNT; n++)
 	clip.label.text = "";
 	clip.label._visible = false;
 	clip._visible = false;
-	icons.push({clip: clip, fraction: 0, stage: 0, source: undefined, frameSource: undefined, ndx: 0, ndy: 0});
+	icons.push({clip: clip, fraction: 0, stage: 0, source: undefined, frameSource: undefined, ndx: 0, ndy: 0, art2Name: undefined, trend: 0, flashPeak: undefined, callAt: undefined, callMs: 0});
 	loadPicture(n, "art", 0);
 }
+var calls = needs.createEmptyMovieClip("calls", 99);
+for (var q = 0; q < ICON_COUNT; q++)
+{
+	var cg = calls.createEmptyMovieClip("call" + q, q + 1);
+	for (var ce = 0; ce < 5; ce++)
+	{
+		cg.createTextField("t" + ce, ce + 1, ce < 4 ? EDGE_X[ce] : 0, ce < 4 ? EDGE_Y[ce] : 0, 400, 24);
+		var ct = cg["t" + ce];
+		ct.embedFonts = true;
+		ct.selectable = false;
+		ct.setNewTextFormat(callFormat);
+		ct.text = "";
+	}
+	cg._visible = false;
+}
+var PEEK_MAX = 18;
+var PEEK_LINE = 19;
+var peek = needs.createEmptyMovieClip("peek", 100);
+for (var p = 0; p < PEEK_MAX; p++)
+{
+	peek.createTextField("line" + p, p + 1, 0, 0, 900, PEEK_LINE + 6);
+	var pl = peek["line" + p];
+	pl.embedFonts = true;
+	pl.selectable = false;
+	pl.setNewTextFormat(callFormat);
+	pl.text = "";
+	pl._visible = false;
+}
+peek._visible = false;
 needs._visible = false;
 needs.onEnterFrame = pulseTick;

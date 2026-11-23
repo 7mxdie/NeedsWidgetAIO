@@ -14,6 +14,7 @@ namespace Hotkey
 		std::atomic<int>  captured{ 0 };
 		std::atomic<bool> refused{ false };
 		std::atomic<int>  presses{ 0 };
+		std::atomic<bool> held{ false };     // 3.0: the widget's key is down (hold to peek)
 
 		// SKSE Menu Framework's own key, from its settings file, so ours can't be the
 		// same one. Its names are ImGui's; the common ones are here. Read again
@@ -105,7 +106,14 @@ namespace Hotkey
 			{
 				for (auto* e = a_events ? *a_events : nullptr; e; e = e->next) {
 					auto* button = e->AsButtonEvent();
-					if (!button || button->GetDevice() != RE::INPUT_DEVICE::kKeyboard || !button->IsDown()) {
+					if (!button || button->GetDevice() != RE::INPUT_DEVICE::kKeyboard) {
+						continue;
+					}
+					// 3.0 hold-to-peek: the widget's key is held from its press until it comes up.
+					if (button->IsUp() && static_cast<int>(button->GetIDCode()) == Settings::GetGeneral().hotkey) {
+						held = false;
+					}
+					if (!button->IsDown()) {
 						continue;
 					}
 					const auto key = button->GetIDCode();
@@ -128,6 +136,7 @@ namespace Hotkey
 						continue;  // only in play
 					}
 					++presses;
+					held = true;
 				}
 				return RE::BSEventNotifyControl::kContinue;
 			}
@@ -162,6 +171,11 @@ namespace Hotkey
 	int TakePresses()
 	{
 		return presses.exchange(0);
+	}
+
+	bool Held()
+	{
+		return held;
 	}
 
 	// With SKSE Menu Framework's window open the game's input events don't reach

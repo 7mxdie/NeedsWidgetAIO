@@ -4,6 +4,7 @@
 #include "Needs.h"
 #include "Settings.h"
 #include "SettingsUI.h"
+#include "Styles.h"
 
 namespace
 {
@@ -14,6 +15,7 @@ namespace
 			// Every plugin is loaded now, SKSE Menu Framework included. Extra icons
 			// first: the settings are saved under their names.
 			Extras::Scan();
+			Styles::Scan();  // before Settings::Load: its log line and colours look the style up
 			Settings::Load();
 			SettingsUI::Register();
 			break;

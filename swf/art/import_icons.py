@@ -47,12 +47,18 @@ ICONS = {
     "lute": "lorc_lyre",              # Claude, 2026-10-27 (HB700, Skyrim's Got Talent); no lute on game-icons
     "flute": "delapouite_flute",
     "drum": "delapouite_drum",
+    "werewolf": "lorc_werewolf",  # Claude, 2026-11-08 (beast form timer, ladyshaiana), for Tom to confirm
     "temperature": "lorc_thermometer-scale",  # Claude, 2026-11-08 (Temperature: Survival Mode / SMI / Frostfall), for Tom to confirm
     "strength": "delapouite_biceps",     # Claude, 2026-10-31 (Strength/Agility/Intelligence Matters), for Tom to confirm
     "agility": "lorc_sprint",
     "intelligence": "lorc_brain",
+    "homesick": "delapouite_house",      # Claude, 2026-11-22 (Simple Needs Expanded), for Tom to confirm
     "magicdebuffs": "lorc_cursed-star",  # Claude, 2026-10-27 (CenteredSword, Rogues 'n Raiders)  # Claude, 2026-10-27 (Raynor1511), for Tom to confirm
 }
+# 3.0: the alternative pictures players can pick for any icon (alternatives.py).
+import alternatives  # noqa: E402
+ICONS.update(alternatives.ALTERNATIVES)
+
 FIT = 52.0            # the longer side of every glyph, in canvas units (canvas is 64)
 CENTRE = 32.0
 CURVE_STEPS = 16      # line pieces per curve
@@ -329,7 +335,11 @@ def field_for(file):
 
 
 def main():
+    # python import_icons.py [name ...]: only those (e.g. a new alternative), else every one.
+    wanted = set(sys.argv[1:])
     for name, source in ICONS.items():
+        if wanted and name not in wanted:
+            continue
         started = time.time()
         field = field_for(os.path.join(SOURCE_DIR, source + ".svg"))
         with open(os.path.join(HERE, name + ".svg"), "w", encoding="utf-8", newline="\n") as f:

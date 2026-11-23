@@ -233,6 +233,123 @@ function stepFx()
 	});
 }
 
+// 3.0 icon styles: setShape then setStyle "shape". Each meter kind draws the share it should,
+// a style's fixed glyph colour and a tinted frame (Signal) take, and Hollow's second glyph
+// fills from the bottom. Colours with whole percentages, as above.
+function shapeStyle(kind, width, geometry, by, alpha, glyph, tintFrame, frame)
+{
+	w.setShape(kind, width, geometry, by, alpha, glyph, tintFrame);
+	styleArgs("shape", frame, 36, 0, 31, true, false);
+}
+
+function meterBox(c)
+{
+	var b = c.meter.getBounds(c);
+	return Math.round(b.xMin) + "," + Math.round(b.yMin) + "," + Math.round(b.xMax) + "," + Math.round(b.yMax);
+}
+
+// 3.0 extras: stage pips, the trend arrow, the stage callout, the soft flash.
+function stepExtras3()
+{
+	var c = w.icons[0].clip;
+	styleArgs("ring", "frame_ring", 36, 0, 31, true, false);
+	w.setPips(true, 30);
+	w.setIcon(0, true, 0.5, 2, "");
+	trace("NWPROBE pips box=" + bounds(c.pips) + " lit=" + tintOf(c.pips));
+	w.setPips(false, 30);
+	trace("NWPROBE pips off w=" + Math.round(c.pips._width));
+	w.setTrend(0, 1);
+	trace("NWPROBE trend worse box=" + bounds(c.trend));
+	w.setTrend(0, -1);
+	trace("NWPROBE trend better box=" + bounds(c.trend));
+	w.setTrend(0, 0);
+	trace("NWPROBE trend none w=" + Math.round(c.trend._width));
+	w.callout(0, "Famished", 600, false);
+	var cg = w.calls.call0;
+	trace("NWPROBE callout on=" + cg._visible + " text=" + cg.t4.text + " color=" + cg.t4.textColor.toString(16) + " edge=" + cg.t0.textColor.toString(16) + " above=" + (cg._y < c._y) + " top=" + (cg.getDepth() > c.getDepth() || cg._parent.getDepth() > c.getDepth()));
+	w.setPeek("Hunger: Peckish|1\nCold: Warm|0");
+	trace("NWPROBE peek on=" + w.peek._visible + " lines=" + w.peek.line0.text + "/" + w.peek.line1.text + " third=" + w.peek.line2._visible + " box=" + (w.peek._width > 40));
+	w.setPeek("");
+	trace("NWPROBE peek off=" + w.peek._visible + " first=" + w.peek.line0._visible);
+	w.flash(0, 1);
+	var peak = 0;
+	everyFrame(3, function()
+	{
+		peak = Math.max(peak, new Color(c.art).getTransform().rb);
+	}, function()
+	{
+		trace("NWPROBE flash soft peak=" + (peak > 40 && peak <= 90));
+		everyFrame(40, function()
+		{
+		}, function()
+		{
+			trace("NWPROBE callout over on=" + cg._visible);
+			trace("NWPROBE done");
+		});
+	});
+}
+
+function stepShapes()
+{
+	var c = w.icons[0].clip;
+	w.setLayout(0, 50, 50, 100, 100, false);
+	shapeStyle("trace", 2, "0,-10 10,-10 10,0", "", 100, 0x336699, false, "frame_nordic_shield");
+	w.setIcon(0, true, 0.5, 3, "");
+	trace("NWPROBE shape trace half=" + meterBox(c) + " art=" + tintOf(c.art));
+	w.setIcon(0, true, 1, 3, "");
+	trace("NWPROBE shape trace full=" + meterBox(c));
+	waitFor(function()
+	{
+		return w.icons[0].frameSource == "icons/";
+	}, function()
+	{
+		trace("NWPROBE shape frame " + w.icons[0].frameSource + " w=" + Math.round(c.frame._width) + " tint=" + tintOf(c.frame));
+		shapeStyle("none", 0, "", "", 100, 0x336699, true, "frame_signal");
+		w.icons[0].frameSource = undefined;
+		waitFor(function()
+		{
+			return w.icons[0].frameSource == "icons/";
+		}, function()
+		{
+			w.setIcon(0, true, 0.5, 3, "");
+			trace("NWPROBE shape signal frame=" + tintOf(c.frame) + " meterW=" + Math.round(c.meter._width));
+			shapeStyle("steps", 2, "0,0 4,0|0,4 4,4|0,8 4,8|0,12 4,12|0,16 4,16", "stage", 100, -1, false, "");
+			w.setIcon(0, true, 0, 3, "");
+			trace("NWPROBE shape steps stage3=" + meterBox(c) + " art=" + tintOf(c.art));
+			shapeStyle("steps", 0, "0,0 4,0 4,2|0,4 4,4 4,6|0,8 4,8 4,10|0,12 4,12 4,14|0,16 4,16 4,18", "share", 100, -1, false, "");
+			w.setIcon(0, true, 0.4, 1, "");
+			trace("NWPROBE shape steps share=" + meterBox(c));
+			shapeStyle("ring", 2, "0,-6,19,0", "", 100, -1, false, "");
+			w.setIcon(0, true, 1, 1, "");
+			trace("NWPROBE shape ring y=" + c.meter._y + " box=" + meterBox(c));
+			shapeStyle("bar", 2, "-10,20,20,2", "centre", 100, -1, false, "");
+			w.setIcon(0, true, 0.5, 1, "");
+			trace("NWPROBE shape bar centre=" + meterBox(c));
+			shapeStyle("level", 0, "-10,-10 10,-10 10,10 -10,10", "", 55, -1, false, "");
+			w.setIcon(0, true, 0.5, 1, "");
+			trace("NWPROBE shape level=" + meterBox(c) + " mask=" + (c.meterMask._width > 0));
+			shapeStyle("glyph", 0, "", "", 100, 0x333333, false, "");
+			waitFor(function()
+			{
+				return c.art2._width > 0;
+			}, function()
+			{
+				w.setIcon(0, true, 0.5, 4, "");
+				var m = c.art2Mask.getBounds(c);
+				trace("NWPROBE shape hollow art2=" + c.art2._visible + " top=" + Math.round(m.yMin) + " art=" + tintOf(c.art) + " fill=" + tintOf(c.art2)
+					+ " others=" + (w.icons[1].clip.art2._width > 0));
+				w.setIcon(0, true, 0, 4, "");
+				trace("NWPROBE shape hollow empty art2=" + c.art2._visible);
+				shapeStyle("level", 0, "-10,-10 10,-10 10,10 -10,10", "", 55, -1, false, "");
+				styleArgs("ring", "frame_ring", 36, 0, 31, true, true);
+				w.setIcon(0, true, 1, 4, "");
+				trace("NWPROBE shape back art2=" + c.art2._visible + " unmasked=" + (c.meter._width > 50) + " art=" + tintOf(c.art));
+				stepExtras3();
+			});
+		});
+	});
+}
+
 // Extra icons: the dll names an addon's picture for an empty slot with setArt.
 // The same name a second time must not load it again.
 function stepExtra()
@@ -253,7 +370,7 @@ function stepExtra()
 		}, function()
 		{
 			trace("NWPROBE extra again loads=" + (w.artDone - before));
-			trace("NWPROBE done");
+			stepShapes();
 		});
 	});
 }

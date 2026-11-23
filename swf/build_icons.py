@@ -31,7 +31,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ART_DIR = os.path.join(HERE, "art")
 OUT_DIR = os.path.join(HERE, "build", "Interface", "NeedsWidget", "icons")
 NAMES = ["hunger", "cold", "fatigue", "stress", "dirt", "encumbrance", "thirst", "wetness", "vitality", "disease",
-         "light", "lantern", "wounds", "injury", "vampire", "magicdebuffs", "lute", "flute", "drum", "strength", "agility", "intelligence", "temperature"]  # from light on: the shipped extra icons' art are the shipped extra icons' art
+         "light", "lantern", "wounds", "injury", "vampire", "magicdebuffs", "lute", "flute", "drum", "strength", "agility", "intelligence", "temperature", "werewolf", "homesick"]  # from light on: the shipped extra icons' art are the shipped extra icons' art
+sys.path.insert(0, ART_DIR)
+import alternatives  # noqa: E402  (3.0: the pictures players can pick for any icon)
+NAMES = NAMES + list(alternatives.ALTERNATIVES)
 CANVAS = 64
 TWIPS = 20
 OFFWHITE = (236, 233, 226)

@@ -61,6 +61,8 @@ namespace Extras
 		// player of that sex. -1, the default, any. Beeing Female keeps a male player's
 		// cycle global at 0, which reads as a phase.
 		int playerSex{ -1 };
+		// iRank (3.0, sType DiseaseRank): which disease, worst first; 2 is the one after the worst.
+		int rank{ 0 };
 
 		// Resolved against [Icon]'s when the section leaves them out.
 		std::array<std::string, 6> stages;  // sStage0-5, for a mod whose stages mean something else

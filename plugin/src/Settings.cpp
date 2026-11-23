@@ -1,6 +1,11 @@
 #include "Settings.h"
 
+#include "Styles.h"
+
 #include "Extras.h"
+
+#include <fstream>
+#include <sstream>
 
 namespace Settings
 {
@@ -28,6 +33,8 @@ namespace Settings
 		// dark frame on the comparison sheet.
 		constexpr std::array<std::uint32_t, 6> BONE_TO_RED{ 0xECE9E2, 0xE8DDB0, 0xE8C870, 0xE8A060, 0xD9503F, 0xFF2E1F };
 		constexpr std::array<std::uint32_t, 6> GREEN_TO_RED{ 0x6FBF5A, 0xA9C94E, 0xE3C94A, 0xE8A060, 0xD9503F, 0xFF2E1F };
+		// 3.0, for colour-blind players: no red against green, light to dark as well as blue to orange (Okabe-Ito hues).
+		constexpr std::array<std::uint32_t, 6> BLUE_TO_ORANGE{ 0xE9F0F6, 0xA9D1F0, 0x56B4E9, 0xF0C060, 0xE69F00, 0xFF6A00 };
 
 		std::mutex                      lock;
 		std::array<Icon, Needs::kCount> current;
@@ -147,6 +154,19 @@ namespace Settings
 			i.hideFromStage = ReadBool(a_file, section, L"bHideFromStage", a_fallback.hideFromStage);
 			i.numberX = ReadFloat(a_file, section, L"fNumberX", a_fallback.numberX);
 			i.numberY = ReadFloat(a_file, section, L"fNumberY", a_fallback.numberY);
+			i.fineUpTo = std::clamp(static_cast<int>(ReadFloat(a_file, section, L"iFineUpTo", static_cast<float>(a_fallback.fineUpTo))), -1, 5);
+			i.where = std::clamp(static_cast<int>(ReadFloat(a_file, section, L"iWhere", static_cast<float>(a_fallback.where))), 0, 2);
+			i.group = std::clamp(static_cast<int>(ReadFloat(a_file, section, L"iGroup", static_cast<float>(a_fallback.group))), 0, 1);
+			i.art = a_fallback.art;
+			if (const auto s = ReadString(a_file, section, L"sArt"); !s.empty()) {
+				i.art.clear();
+				for (const auto c : s) {
+					i.art += static_cast<char>(c < 128 ? c : '_');
+				}
+				if (i.art == "-") {
+					i.art.clear();  // written for the icon's own over a default that names another
+				}
+			}
 			i.source = a_fallback.source;
 			if (const auto s = ReadString(a_file, section, L"sSource"); !s.empty()) {
 				i.source.clear();
@@ -264,11 +284,26 @@ namespace Settings
 		General ReadGeneral(const std::wstring& a_file, const General& a_fallback)
 		{
 			General g;
+			g.showWidget = ReadBool(a_file, L"General", L"bShowWidget", a_fallback.showWidget);
+			g.diseaseEach = ReadBool(a_file, L"General", L"bOneIconPerDisease", a_fallback.diseaseEach);
+			g.styleOffered = ReadBool(a_file, L"General", L"bStyleOffered", a_fallback.styleOffered);
 			const auto look = static_cast<int>(ReadFloat(a_file, L"General", L"iLook", static_cast<float>(a_fallback.look)));
 			g.look = static_cast<Look>(std::clamp(look, 0, 3));
+			g.style = a_fallback.style;
+			if (const auto s = ReadString(a_file, L"General", L"sStyle"); !s.empty()) {
+				g.style.clear();
+				for (const auto ch : s) {
+					if (!iswspace(ch) || !g.style.empty()) {
+						g.style += static_cast<char>(ch < 128 ? ch : '_');
+					}
+				}
+				if (g.style == "-") {
+					g.style.clear();  // written for Ring, Bar, Icon only or Fill over a default that names a style
+				}
+			}
 			g.tintArt = ReadBool(a_file, L"General", L"bTintIcons", a_fallback.tintArt);
 			const auto colors = static_cast<int>(ReadFloat(a_file, L"General", L"iColorScheme", static_cast<float>(a_fallback.colors)));
-			g.colors = static_cast<ColorScheme>(std::clamp(colors, 0, 2));
+			g.colors = static_cast<ColorScheme>(std::clamp(colors, 0, 4));
 			g.pulseWorst = ReadBool(a_file, L"General", L"bPulseWorst", a_fallback.pulseWorst);
 			g.numbersAbove = ReadBool(a_file, L"General", L"bNumbersAbove", a_fallback.numbersAbove);
 			g.numberSize = std::clamp(ReadFloat(a_file, L"General", L"fNumberSize", a_fallback.numberSize), 50.0f, 400.0f);
@@ -277,7 +312,7 @@ namespace Settings
 			g.numberX = std::clamp(ReadFloat(a_file, L"General", L"fNumberX", a_fallback.numberX), -200.0f, 200.0f);
 			g.numberTint = ReadBool(a_file, L"General", L"bNumberTint", a_fallback.numberTint);
 			g.numberEdge = ReadBool(a_file, L"General", L"bNumberEdge", a_fallback.numberEdge);
-			g.numberShows = std::clamp(static_cast<int>(ReadFloat(a_file, L"General", L"iNumberShows", static_cast<float>(a_fallback.numberShows))), 0, 1);
+			g.numberShows = std::clamp(static_cast<int>(ReadFloat(a_file, L"General", L"iNumberShows", static_cast<float>(a_fallback.numberShows))), 0, 2);
 			g.numberFont = std::clamp(static_cast<int>(ReadFloat(a_file, L"General", L"iNumberFont", static_cast<float>(a_fallback.numberFont))), 0, 5);
 			g.numberCase = std::clamp(static_cast<int>(ReadFloat(a_file, L"General", L"iNumberCase", static_cast<float>(a_fallback.numberCase))), 0, 2);
 			g.meterDrains = ReadBool(a_file, L"General", L"bMeterDrains", a_fallback.meterDrains);
@@ -286,7 +321,7 @@ namespace Settings
 			g.keepBad = ReadBool(a_file, L"General", L"bKeepBadShown", a_fallback.keepBad);
 			g.flashWorse = ReadBool(a_file, L"General", L"bFlashWorse", a_fallback.flashWorse);
 			g.hotkey = std::clamp(static_cast<int>(ReadFloat(a_file, L"General", L"iHotkey", static_cast<float>(a_fallback.hotkey))), 0, 255);
-			g.hotkeyMode = std::clamp(static_cast<int>(ReadFloat(a_file, L"General", L"iHotkeyMode", static_cast<float>(a_fallback.hotkeyMode))), 0, 1);
+			g.hotkeyMode = std::clamp(static_cast<int>(ReadFloat(a_file, L"General", L"iHotkeyMode", static_cast<float>(a_fallback.hotkeyMode))), 0, 1);  // 2 (hold to peek) parked, Tom TEST32
 			g.groupSize = std::clamp(ReadFloat(a_file, L"General", L"fGroupSize", a_fallback.groupSize), 25.0f, 300.0f);
 			g.groupX = std::clamp(ReadFloat(a_file, L"General", L"fGroupMoveX", a_fallback.groupX), -100.0f, 100.0f);
 			g.groupY = std::clamp(ReadFloat(a_file, L"General", L"fGroupMoveY", a_fallback.groupY), -100.0f, 100.0f);
@@ -301,6 +336,21 @@ namespace Settings
 			g.wrapBefore = ReadBool(a_file, L"General", L"bWrapBefore", a_fallback.wrapBefore);
 			g.lineGap = std::clamp(ReadFloat(a_file, L"General", L"fLineGap", a_fallback.lineGap), 0.0f, 200.0f);
 			g.order = ReadOrder(a_file, a_fallback.order);
+			g.worstFirst = ReadBool(a_file, L"General", L"bWorstFirst", a_fallback.worstFirst);
+			g.maxShown = std::clamp(static_cast<int>(ReadFloat(a_file, L"General", L"iMaxShown", static_cast<float>(a_fallback.maxShown))), 0, static_cast<int>(Needs::kCount));
+			g.growBad = std::clamp(ReadFloat(a_file, L"General", L"fGrowBad", a_fallback.growBad), 0.0f, 100.0f);
+			g.hideInCombat = ReadBool(a_file, L"General", L"bHideInCombat", a_fallback.hideInCombat);
+			g.hideWeaponDrawn = ReadBool(a_file, L"General", L"bHideWeaponDrawn", a_fallback.hideWeaponDrawn);
+			g.hideMounted = ReadBool(a_file, L"General", L"bHideMounted", a_fallback.hideMounted);
+			g.showInMenus = false;  // removed (Tom, TEST34: "that would get in the way"); bShowInMenus is not read
+			g.flashBetter = ReadBool(a_file, L"General", L"bFlashBetter", a_fallback.flashBetter);
+			g.callout = false;  // parked (Tom, TEST35: the dll sent it, log "callout: ...", but nothing showed in game); bStageCallout not read
+			g.soundFrom = 0;  // the stage sound is parked (Tom, TEST32: no click heard); iSoundFrom is not read
+			g.sound = std::clamp(static_cast<int>(ReadFloat(a_file, L"General", L"iSound", static_cast<float>(a_fallback.sound))), 0, 2);
+			g.stagePips = ReadBool(a_file, L"General", L"bStagePips", a_fallback.stagePips);
+			g.trend = ReadBool(a_file, L"General", L"bTrendArrow", a_fallback.trend);
+			g.line2X = std::clamp(ReadFloat(a_file, L"General", L"fLine2PosX", a_fallback.line2X), 0.0f, 100.0f);
+			g.line2Y = std::clamp(ReadFloat(a_file, L"General", L"fLine2PosY", a_fallback.line2Y), 0.0f, 100.0f);
 			// TEST5 and earlier kept these under [Style] in the defaults file; a
 			// reskin written then still works.
 			for (std::size_t k = 0; k < g.customColors.size(); ++k) {
@@ -432,7 +482,11 @@ namespace Settings
 
 		void WriteGeneral(const std::wstring& a_file, const General& a_g)
 		{
+			Write(a_file, L"General", L"bShowWidget", a_g.showWidget ? L"1" : L"0");
+			Write(a_file, L"General", L"bOneIconPerDisease", a_g.diseaseEach ? L"1" : L"0");
+			Write(a_file, L"General", L"bStyleOffered", a_g.styleOffered ? L"1" : L"0");
 			Write(a_file, L"General", L"iLook", std::to_wstring(static_cast<int>(a_g.look)));
+			Write(a_file, L"General", L"sStyle", a_g.style.empty() ? std::wstring(L"-") : Wide(a_g.style));
 			Write(a_file, L"General", L"bTintIcons", a_g.tintArt ? L"1" : L"0");
 			Write(a_file, L"General", L"iColorScheme", std::to_wstring(static_cast<int>(a_g.colors)));
 			Write(a_file, L"General", L"bPulseWorst", a_g.pulseWorst ? L"1" : L"0");
@@ -466,6 +520,21 @@ namespace Settings
 			Write(a_file, L"General", L"bWrapBefore", a_g.wrapBefore ? L"1" : L"0");
 			Write(a_file, L"General", L"fLineGap", Number(a_g.lineGap));
 			Write(a_file, L"General", L"sOrder", OrderText(a_g.order));
+			Write(a_file, L"General", L"bWorstFirst", a_g.worstFirst ? L"1" : L"0");
+			Write(a_file, L"General", L"iMaxShown", std::to_wstring(a_g.maxShown));
+			Write(a_file, L"General", L"fGrowBad", Number(a_g.growBad));
+			Write(a_file, L"General", L"bHideInCombat", a_g.hideInCombat ? L"1" : L"0");
+			Write(a_file, L"General", L"bHideWeaponDrawn", a_g.hideWeaponDrawn ? L"1" : L"0");
+			Write(a_file, L"General", L"bHideMounted", a_g.hideMounted ? L"1" : L"0");
+			Write(a_file, L"General", L"bShowInMenus", a_g.showInMenus ? L"1" : L"0");
+			Write(a_file, L"General", L"bFlashBetter", a_g.flashBetter ? L"1" : L"0");
+			Write(a_file, L"General", L"bStageCallout", a_g.callout ? L"1" : L"0");
+			Write(a_file, L"General", L"iSoundFrom", std::to_wstring(a_g.soundFrom));
+			Write(a_file, L"General", L"iSound", std::to_wstring(a_g.sound));
+			Write(a_file, L"General", L"bStagePips", a_g.stagePips ? L"1" : L"0");
+			Write(a_file, L"General", L"bTrendArrow", a_g.trend ? L"1" : L"0");
+			Write(a_file, L"General", L"fLine2PosX", Number(a_g.line2X));
+			Write(a_file, L"General", L"fLine2PosY", Number(a_g.line2Y));
 			for (std::size_t k = 0; k < a_g.customColors.size(); ++k) {
 				Write(a_file, L"General", std::format(L"sStage{}Color", k).c_str(), Hex(a_g.customColors[k]));
 			}
@@ -487,6 +556,10 @@ namespace Settings
 			if (!a_i.source.empty()) {
 				Write(a_file, section, L"sSource", Wide(a_i.source));
 			}
+			Write(a_file, section, L"iFineUpTo", std::to_wstring(a_i.fineUpTo));
+			Write(a_file, section, L"sArt", a_i.art.empty() ? std::wstring(L"-") : Wide(a_i.art));
+			Write(a_file, section, L"iWhere", std::to_wstring(a_i.where));
+			Write(a_file, section, L"iGroup", std::to_wstring(a_i.group));
 		}
 
 		std::string Utf8(const std::wstring& a_text)
@@ -498,6 +571,17 @@ namespace Settings
 			std::string out(static_cast<std::size_t>(n), '\0');
 			WideCharToMultiByte(CP_UTF8, 0, a_text.c_str(), static_cast<int>(a_text.size()), out.data(), n, nullptr, nullptr);
 			return out;
+		}
+
+		// A preset is a look and a layout: it never switches the widget on or off, and whether
+		// one is in use doesn't depend on the switch.
+		// Nor which icons exist (one per disease, 3.0).
+		General WithSwitch(General a_general, const General& a_keep)
+		{
+			a_general.showWidget = a_keep.showWidget;
+			a_general.diseaseEach = a_keep.diseaseEach;
+			a_general.styleOffered = a_keep.styleOffered;
+			return a_general;
 		}
 
 		// Call with the lock held.
@@ -563,8 +647,10 @@ namespace Settings
 		savedGeneral = currentGeneral;
 		dirty = true;
 		ScanPresetsLocked();
-		logs::info("look {} (0 ring, 1 bar, 2 icon only), colour icons {}, colours {} (0 bone to red, 1 green to red, 2 custom), pulse {}",
-			static_cast<int>(currentGeneral.look), currentGeneral.tintArt, static_cast<int>(currentGeneral.colors), currentGeneral.pulseWorst);
+		logs::info("look {} (0 ring, 1 bar, 2 icon only, 3 fill), style {} ({}), colour icons {}, colours {} (0 bone to red, 1 green to red, 2 custom, 3 the style's), pulse {}",
+			static_cast<int>(currentGeneral.look), currentGeneral.style.empty() ? "none" : currentGeneral.style,
+			currentGeneral.style.empty() ? "the look" : Styles::Find(currentGeneral.style) ? "found" : "NOT FOUND, using the look",
+			currentGeneral.tintArt, static_cast<int>(currentGeneral.colors), currentGeneral.pulseWorst);
 		if (currentGeneral.colors == ColorScheme::kCustom) {
 			const auto& c = currentGeneral.customColors;
 			logs::info("custom colours {:06X} {:06X} {:06X} {:06X} {:06X} {:06X}", c[0], c[1], c[2], c[3], c[4], c[5]);
@@ -645,6 +731,37 @@ namespace Settings
 		return written;
 	}
 
+	bool SaveShowWidget(bool a_show)
+	{
+		std::scoped_lock l(lock);
+		currentGeneral.showWidget = a_show;
+		const auto liveIcons = current;
+		const auto liveGeneral = currentGeneral;
+		current = saved;
+		currentGeneral = savedGeneral;
+		currentGeneral.showWidget = a_show;
+		const bool written = SaveLocked();
+		current = liveIcons;
+		currentGeneral = liveGeneral;
+		logs::info("widget switched {}{}", a_show ? "on" : "off", written ? "" : " (could not save it)");
+		return written;
+	}
+
+	bool SaveStyleOffered()
+	{
+		std::scoped_lock l(lock);
+		currentGeneral.styleOffered = true;
+		const auto liveIcons = current;
+		const auto liveGeneral = currentGeneral;
+		current = saved;
+		currentGeneral = savedGeneral;
+		currentGeneral.styleOffered = true;
+		const bool written = SaveLocked();
+		current = liveIcons;
+		currentGeneral = liveGeneral;
+		return written;
+	}
+
 	void ScanPresets()
 	{
 		std::scoped_lock l(lock);
@@ -660,7 +777,7 @@ namespace Settings
 	void ApplyPreset(const Preset& a_preset)
 	{
 		std::scoped_lock l(lock);
-		currentGeneral = a_preset.general;
+		currentGeneral = WithSwitch(a_preset.general, currentGeneral);
 		current = a_preset.icons;
 		dirty = true;
 		logs::info("preset applied: {}", a_preset.name);
@@ -669,13 +786,13 @@ namespace Settings
 	bool IsInUse(const Preset& a_preset)
 	{
 		std::scoped_lock l(lock);
-		return currentGeneral == a_preset.general && current == a_preset.icons;
+		return currentGeneral == WithSwitch(a_preset.general, currentGeneral) && current == a_preset.icons;
 	}
 
 	bool MatchesDefaults()
 	{
 		std::scoped_lock l(lock);
-		return currentGeneral == defaultGeneral && current == defaults;
+		return currentGeneral == WithSwitch(defaultGeneral, currentGeneral) && current == defaults;
 	}
 
 	std::filesystem::path ExportPreset()
@@ -697,6 +814,9 @@ namespace Settings
 		}
 		const auto file = path.wstring();
 		writeFailures = 0;
+		// Built in memory and written once, like Save (Tom, TEST33: a huge FPS drop on Copy and Paste,
+		// from hundreds of WritePrivateProfileString calls).
+		pending.emplace(PendingFile{ file, {} });
 		Write(file, L"Preset", L"sName", path.stem().wstring());
 		Write(file, L"Preset", L"sNote", L"Saved from the menu. Add who made it and which UI it is for.");
 		// Everything, not only what differs: a preset has to look the same whatever
@@ -707,13 +827,88 @@ namespace Settings
 				WriteIcon(file, static_cast<Needs::Id>(id), current[id]);
 			}
 		}
-		if (!std::filesystem::exists(path, ec)) {
+		const bool written = WritePending();
+		pending.reset();
+		if (!written || !std::filesystem::exists(path, ec)) {
 			logs::warn("could not write {}", path.string());
 			return {};
 		}
 		ScanPresetsLocked();
 		logs::info("settings exported as a preset: {}", path.string());
 		return path;
+	}
+
+	// 3.0 (Fable, Tom): a preset as text for the clipboard, so players share one in a comment.
+	std::string PresetText()
+	{
+		std::scoped_lock l(lock);
+		// Built in memory only: no file (Tom, TEST33: the FPS drop).
+		const std::wstring file = L"<clipboard>";
+		pending.emplace(PendingFile{ file, {} });
+		Write(file, L"Preset", L"sName", L"Pasted preset");
+		Write(file, L"Preset", L"sNote", L"Pasted from someone's copy. Add who made it and which UI it is for.");
+		WriteGeneral(file, currentGeneral);
+		for (std::uint32_t id = 0; id < Needs::kCount; ++id) {
+			if (Needs::Used(static_cast<Needs::Id>(id))) {
+				WriteIcon(file, static_cast<Needs::Id>(id), current[id]);
+			}
+		}
+		std::wstring text;
+		for (const auto& [section, keys] : pending->sections) {
+			text += std::format(L"[{}]\r\n", section);
+			for (const auto& [key, value] : keys) {
+				text += std::format(L"{}={}\r\n", key, value);
+			}
+			text += L"\r\n";
+		}
+		pending.reset();
+		if (text.empty()) {
+			return {};
+		}
+		// UTF-8 for the clipboard; Paste writes it back as it came.
+		const int   n = WideCharToMultiByte(CP_UTF8, 0, text.c_str(), static_cast<int>(text.size()), nullptr, 0, nullptr, nullptr);
+		std::string out(static_cast<std::size_t>(n), '\0');
+		WideCharToMultiByte(CP_UTF8, 0, text.c_str(), static_cast<int>(text.size()), out.data(), n, nullptr, nullptr);
+		return out;
+	}
+
+	std::filesystem::path PastePreset(const std::string& a_text)
+	{
+		if (a_text.find("[General]") == std::string::npos) {
+			logs::info("paste preset: the clipboard holds no [General] section, so it isn't a preset");
+			return {};
+		}
+		std::filesystem::path path;
+		{
+			std::scoped_lock l(lock);
+			std::error_code  ec;
+			std::filesystem::create_directories(PresetDir(), ec);
+			for (int n = 1; n < 1000; ++n) {
+				const auto candidate = PresetDir() / (n == 1 ? std::wstring(L"Pasted preset.ini") : std::format(L"Pasted preset {}.ini", n));
+				if (!std::filesystem::exists(candidate, ec)) {
+					path = candidate;
+					break;
+				}
+			}
+			if (path.empty()) {
+				return {};
+			}
+			std::ofstream out(path, std::ios::binary);
+			out << a_text;
+			if (!out) {
+				logs::warn("paste preset: could not write {}", path.string());
+				return {};
+			}
+		}
+		ScanPresets();
+		for (const auto& preset : GetPresets()) {
+			if (preset.file == path) {
+				ApplyPreset(preset);
+				logs::info("pasted a preset as {} and applied it", path.string());
+				return path;
+			}
+		}
+		return {};
 	}
 
 	void ShowAllNumbers(bool a_show)
@@ -728,7 +923,7 @@ namespace Settings
 	void RestoreAllDefaults()
 	{
 		std::scoped_lock l(lock);
-		currentGeneral = defaultGeneral;
+		currentGeneral = WithSwitch(defaultGeneral, currentGeneral);  // the Default preset
 		current = defaults;
 		dirty = true;
 	}
@@ -770,6 +965,18 @@ namespace Settings
 		return currentGeneral;
 	}
 
+	General GetGeneralDefaults()
+	{
+		std::scoped_lock l(lock);
+		return defaultGeneral;
+	}
+
+	Icon GetDefaults(Needs::Id a_id)
+	{
+		std::scoped_lock l(lock);
+		return a_id < Needs::kCount ? defaults[a_id] : Icon{};
+	}
+
 	void SetGeneral(const General& a_general)
 	{
 		std::scoped_lock l(lock);
@@ -790,6 +997,8 @@ namespace Settings
 		switch (a_scheme) {
 		case ColorScheme::kGreenToRed:
 			return GREEN_TO_RED;
+		case ColorScheme::kBlueToOrange:
+			return BLUE_TO_ORANGE;
 		case ColorScheme::kCustom:
 			{
 				std::scoped_lock l(lock);
@@ -802,7 +1011,14 @@ namespace Settings
 
 	std::array<std::uint32_t, 6> StageColors(const General& a_general)
 	{
-		return a_general.colors == ColorScheme::kCustom ? a_general.customColors : StageColors(a_general.colors);
+		if (a_general.colors == ColorScheme::kCustom) {
+			return a_general.customColors;
+		}
+		// A dark-ink style (Parchment, Septim) always uses its own: bright colours would vanish on it.
+		if (const auto picked = Styles::Find(a_general.style); picked && (picked->ownColors || a_general.colors == ColorScheme::kStyle)) {
+			return picked->colors;
+		}
+		return StageColors(a_general.colors == ColorScheme::kStyle ? ColorScheme::kBoneToRed : a_general.colors);
 	}
 
 	bool HasUnsavedChanges()

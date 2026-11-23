@@ -21,10 +21,14 @@ namespace Needs
 		constexpr std::string_view KYNE = "Tears of Kyne.esp";
 		constexpr std::string_view KEEP_CLEAN = "Keep It Clean.esp";
 		constexpr std::string_view IMMERSIVE_NEEDS = "Immersive Needs ESL.esp";
+		// Frostbite ships as Frostbite.esp and, for a patch that wants it, a compacted Frostbite.esl
+		// (SafeMuffins, 2.10): same editor IDs, other form IDs.
 		constexpr std::string_view FROSTBITE = "Frostbite.esp";
+		constexpr std::string_view FROSTBITE_ESL = "Frostbite.esl";
 		constexpr std::string_view DRINK_IT_OFF = "DrinkItOff.esp";
 		constexpr std::string_view SIMPLE_NEEDS = "Super Simple Needs.esp";
 		constexpr std::string_view RND = "RealisticNeedsandDiseases.esp";
+		constexpr std::string_view VITALITY_MODE = "VitalityMode.esp";
 		// Frostfall's four ...ReadOnly globals are its own records, but in Update.esm's
 		// form ID space (master index 01 in Frostfall.esp; Update.esm has no such records).
 		constexpr std::string_view UPDATE = "Update.esm";
@@ -86,9 +90,29 @@ namespace Needs
 			return spell;
 		}
 
+		// By form ID, then by editor ID among that plugin's own quests (quests keep theirs in the
+		// game): an ESLified or compacted plugin renumbers its records but keeps the names (2.10:
+		// Frostbite.esl). The name wins over a form ID that lands on another quest.
 		RE::TESQuest* FindQuest(std::string_view a_editorID, RE::FormID a_localID, std::string_view a_plugin)
 		{
-			auto* quest = RE::TESDataHandler::GetSingleton()->LookupForm<RE::TESQuest>(a_localID, a_plugin);
+			auto* const dh = RE::TESDataHandler::GetSingleton();
+			auto*       quest = dh->LookupForm<RE::TESQuest>(a_localID, a_plugin);
+			if (quest && a_editorID == quest->GetFormEditorID()) {
+				logs::info("{}: found", a_editorID);
+				return quest;
+			}
+			RE::TESQuest* named = nullptr;
+			for (auto* q : dh->GetFormArray<RE::TESQuest>()) {
+				const auto* file = q ? q->GetFile(0) : nullptr;
+				if (file && a_editorID == q->GetFormEditorID() && _stricmp(file->GetFilename().data(), std::string(a_plugin).c_str()) == 0) {
+					named = q;
+					break;
+				}
+			}
+			if (named) {
+				logs::info("{}: found by editor ID ({:08X}, not {:06X})", a_editorID, named->GetFormID(), a_localID);
+				return named;
+			}
 			logs::info("{}: {}", a_editorID, quest ? "found" : "not found");
 			return quest;
 		}
@@ -155,6 +179,7 @@ namespace Needs
 		std::mutex                      lastLock;
 		std::array<Reading, kCount>     last{};
 		std::array<std::string, kCount> lastWhy{};
+		std::array<Names, kCount>       lastNames{};  // the names of the source last used (2.10, the fine choice)
 		std::array<std::string, kCount> lastFine{};
 		std::array<int, kCount>         loggedStage{};
 		std::array<bool, kCount>        loggedAvailable{};
@@ -402,6 +427,16 @@ namespace Needs
 		//                   type check misses them and the global is read instead
 		// The worst one names the stage.
 
+		struct Sick
+		{
+			std::string name;
+			int         severity{ 1 };
+			const char* source{ "Skyrim" };
+		};
+		std::mutex        sickLock;
+		std::vector<Sick> sick;  // every disease, worst first, from the Disease icon's last read
+		std::array<bool, kCount> perDisease{};  // extra slots fed by DiseaseRank
+
 		Source DiseaseSource()
 		{
 			Source s;
@@ -464,10 +499,9 @@ namespace Needs
 				if (!player) {
 					return false;
 				}
-				int         worst = 0;
-				int         count = 0;
-				const char* from = "Skyrim";
-				named.clear();
+				// Every disease with its severity (1-5) and who said so, worst first. One icon per
+				// disease (3.0) shows them one each; otherwise the worst names the icon.
+				std::vector<Sick> list;
 				// The diseases whose effects are running on the player, as the Active Effects
 				// menu lists them. Not the added-spells list: with SunHelm and the Simonrim mods,
 				// Survival Mode's stage spells stay there doing nothing (a "Severe Rockjoint"
@@ -487,7 +521,6 @@ namespace Needs
 					}
 				}
 				for (auto* spell : diseases) {
-					++count;
 					int         severity = 1;
 					const char* source = "Skyrim";
 					for (const auto& [stage, sev] : survivalStages) {
@@ -517,25 +550,17 @@ namespace Needs
 							}
 						}
 					}
-					if (severity > worst || named.empty()) {
-						worst = (std::max)(worst, severity);
-						named = spell->GetName();
-						from = source;
-					}
+					list.push_back({ spell->GetName() ? spell->GetName() : "Diseased", severity, source });
 				}
 				if (iNeedStage && PlayerHas(iNeedSpell) && iNeedStage->value >= 1.0f) {
 					constexpr std::array INEED_SEVERITY{ 0, 1, 3, 4, 5 };  // Mild, Moderate, Severe, Deathly
 					const int sev = INEED_SEVERITY[std::clamp(static_cast<int>(std::lround(iNeedStage->value)), 0, 4)];
-					if (sev >= worst) {
-						worst = sev;
-						named = "Diseased";
-						from = "iNeed";
-					}
-					++count;
+					list.push_back({ "Diseased", sev, "iNeed" });
 				}
+				std::ranges::stable_sort(list, std::ranges::greater{}, &Sick::severity);
 				// 2.9.0 (Brunny: red at 80% for good): only a stage spell whose effect is running
 				// counts. Kept in the spell list after a cure it means nothing, the same trap as
-				// Survival Mode's leftover stage spells above.
+				// Survival Mode's leftover stage spells above. It raises the worst disease.
 				std::vector<RE::MagicItem*> running;
 				if (!rndStages.empty()) {
 					if (auto* const effects = target ? target->GetActiveEffectList() : nullptr) {
@@ -547,27 +572,69 @@ namespace Needs
 					}
 				}
 				for (const auto& [stage, sev] : rndStages) {
-					if (std::ranges::find(running, static_cast<RE::MagicItem*>(stage)) != running.end() && sev >= worst) {
-						worst = sev;
-						from = "Realistic Needs and Diseases";
-						if (named.empty()) {
-							named = "Diseased";
-							count = (std::max)(count, 1);
+					if (std::ranges::find(running, static_cast<RE::MagicItem*>(stage)) != running.end()) {
+						if (list.empty()) {
+							list.push_back({ "Diseased", sev, "Realistic Needs and Diseases" });
+						} else if (sev >= list.front().severity) {
+							list.front().severity = sev;
+							list.front().source = "Realistic Needs and Diseases";
 						}
 					}
 				}
+				const bool           each = Settings::GetGeneral().diseaseEach;
 				constexpr std::array SEVERITY_STAGE{ 0, 2, 3, 4, 5, 5 };
-				r.stage = SEVERITY_STAGE[std::clamp(worst, 0, 5)];
+				const int            count = static_cast<int>(list.size());
+				r.stage = list.empty() ? 0 : SEVERITY_STAGE[std::clamp(list.front().severity, 0, 5)];
 				r.value = static_cast<float>(count);
 				r.max = 5.0f;
 				r.fraction = static_cast<float>(r.stage) / 5.0f;
-				if (count > 1) {
+				named = list.empty() ? std::string() : list.front().name;
+				if (count > 1 && !each) {
 					named += std::format(" (+{})", count - 1);
 				}
 				r.stageName = count > 0 ? named.c_str() : "Healthy";
-				r.source = from;
+				r.source = list.empty() ? "Skyrim" : list.front().source;
+				{
+					std::scoped_lock l(sickLock);
+					sick = std::move(list);
+				}
 				return true;
 			};
+			return s;
+		}
+
+		// One icon per disease (3.0): Icons/Disease N.ini, sType DiseaseRank, iRank N. Reads the
+		// list the Disease icon made this round (Disease is read first: a lower slot).
+		Source DiseaseRankSource(const Extras::Def& a_icon, const Extras::SourceDef& a_def)
+		{
+			Source s;
+			s.mod = a_def.mod.c_str();
+			s.names = { "Healthy", "Diseased", "Diseased", "Diseased", "Diseased", "Diseased" };
+			s.fine = "Healthy";
+			s.installed = true;
+			auto named = std::make_shared<std::string>();
+			s.read = [rank = static_cast<std::size_t>(a_def.rank), named](Reading& r, std::string& why, std::string&) {
+				if (!Settings::GetGeneral().diseaseEach) {
+					why = "One icon per disease is off (Disease's section on the Icons page).";
+					return false;
+				}
+				std::scoped_lock l(sickLock);
+				if (sick.size() < rank) {
+					why = std::format("Fewer than {} diseases right now.", rank);
+					return false;
+				}
+				constexpr std::array SEVERITY_STAGE{ 0, 2, 3, 4, 5, 5 };
+				const auto&          d = sick[rank - 1];
+				*named = d.name;
+				r.stage = SEVERITY_STAGE[std::clamp(d.severity, 0, 5)];
+				r.value = 1.0f;
+				r.max = 5.0f;
+				r.fraction = static_cast<float>(r.stage) / 5.0f;
+				r.stageName = named->c_str();
+				r.source = d.source;
+				return true;
+			};
+			(void)a_icon;
 			return s;
 		}
 
@@ -937,6 +1004,74 @@ namespace Needs
 			return s;
 		}
 
+		// --- Simple Needs Expanded - Eat Sleep Drink Go Home (Nexus 180298) ------------------------
+		// Ships as Super Simple Needs.esp too, ESL-flagged or not (same form IDs), with the same quest,
+		// alias and script names, but its own records: the quest is 000001, so the original's 005901
+		// isn't there and the two never both read. mzin_SSN_PlayerAlias keeps when you last ate,
+		// drank, slept and were home (LastMealT, LastDrinkT, LastRestT, LastHomeT, in game days),
+		// checked every aaaSSN_UpdateInterval game hours: a warning message from
+		// aaaSSN_HoursToGet<Need>Warning, the penalty ability from aaaSSN_HoursToGet<Need>. Those and
+		// each aaaSSN_ShouldTrack<Need> switch are meant to be changed from the console, so they're
+		// read live. Homesick is the extra icon in Icons/Homesick.ini (sType SimpleNeedsHome). Read
+		// from 1.0's esp and script; tested in game by its author (Nick, 2026-11-22).
+
+		RE::TESQuest*                expandedQuest{ nullptr };
+		std::shared_ptr<ScriptWatch> expandedWatch;
+		enum ExpandedVariable : std::size_t
+		{
+			kLastMeal,
+			kLastRest,
+			kLastDrink,
+			kLastHome,
+			kHasHome
+		};
+
+		// Hours since the time in the variable, if the script has set it.
+		std::optional<float> ExpandedHoursSince(const std::vector<std::optional<float>>& a_got, ExpandedVariable a_variable)
+		{
+			const auto* calendar = RE::Calendar::GetSingleton();
+			if (a_got.size() <= a_variable || !a_got[a_variable] || *a_got[a_variable] <= 0.0f || !calendar) {
+				return std::nullopt;
+			}
+			return (std::max)((calendar->GetDaysPassed() - *a_got[a_variable]) * 24.0f, 0.0f);
+		}
+
+		Source SimpleNeedsExpandedSource(const char* a_state, const char* a_need, ExpandedVariable a_variable, RE::FormID a_spell,
+			RE::FormID a_at, RE::FormID a_warn, RE::FormID a_track, float a_defaultAt, float a_defaultWarn, Names a_names)
+		{
+			Source s;
+			s.mod = "Simple Needs Expanded";
+			s.names = a_names;
+			if (!expandedQuest) {
+				return s;
+			}
+			auto* spell = FindSpell(std::format("mzin_SSN_Spell{}", a_state), a_spell, SIMPLE_NEEDS);
+			auto* at = FindGlobal(std::format("aaaSSN_HoursToGet{}", a_state), a_at, SIMPLE_NEEDS);
+			auto* warn = FindGlobal(std::format("aaaSSN_HoursToGet{}Warning", a_state), a_warn, SIMPLE_NEEDS);
+			auto* track = FindGlobal(std::format("aaaSSN_ShouldTrack{}", a_need), a_track, SIMPLE_NEEDS);
+			auto  watch = expandedWatch;
+			s.installed = true;
+			s.waiting = [watch] { return !Answered(watch); };
+			s.read = [=](Reading& r, std::string& why, std::string&) {
+				if (track && track->value <= 0.0f) {
+					why = "This need is switched off in Simple Needs Expanded.";
+					return false;
+				}
+				const float atHours = at && at->value > 0.0f ? at->value : a_defaultAt;
+				const float warnHours = std::clamp(warn ? warn->value : a_defaultWarn, 0.0f, atHours);
+				r.max = atHours;
+				r.value = ExpandedHoursSince(Latest(watch), a_variable).value_or(0.0f);
+				r.stage = StepsReached(r.value, std::array{ warnHours / 2.0f, warnHours, atHours, atHours, 1.0e9f });
+				if (PlayerHas(spell)) {
+					r.stage = 4;
+					r.value = (std::max)(r.value, atHours);
+				}
+				r.fraction = (std::min)(r.value / r.max, 1.0f);
+				return true;
+			};
+			return s;
+		}
+
 		// --- Realistic Needs and Diseases (Nexus 23799) -------------------------------------------
 		// RND_HungerPoints, RND_ThirstPoints and RND_SleepPoints, 0 to 240, higher is worse,
 		// moved once a game hour by its timer effects and straight away by eating, drinking
@@ -982,16 +1117,18 @@ namespace Needs
 			Source s;
 			s.mod = "Frostbite";
 			s.names = { "Warm", "Comfortable", "Chilly", "Very Cold", "Freezing", "Freezing to Death" };
-			if (!Loaded(FROSTBITE)) {
+			const auto plugin = Loaded(FROSTBITE) ? FROSTBITE : Loaded(FROSTBITE_ESL) ? FROSTBITE_ESL : std::string_view{};
+			if (plugin.empty()) {
 				return s;
 			}
-			auto* quest = FindQuest("_JSW_FB_HandlerQuest", 0x005901, FROSTBITE);
+			logs::info("Frostbite: reading {}", plugin);
+			auto* quest = FindQuest("_JSW_FB_HandlerQuest", 0x005901, plugin);
 			if (!quest) {
 				return s;
 			}
-			auto* enabled = FindGlobal("_JSW_FB_Enabled", 0x023F0F, FROSTBITE);
-			auto* regen = FindGlobal("_JSW_FB_RegenDebuff", 0x029021, FROSTBITE);
-			auto* damage = FindGlobal("_JSW_FB_DamageDebuff", 0x029020, FROSTBITE);
+			auto* enabled = FindGlobal("_JSW_FB_Enabled", 0x023F0F, plugin);
+			auto* regen = FindGlobal("_JSW_FB_RegenDebuff", 0x029021, plugin);
+			auto* damage = FindGlobal("_JSW_FB_DamageDebuff", 0x029020, plugin);
 			auto  watch = Watch(quest, 0, "_JSW_FB_HandlerScript", { "::BodyTemp_var" });
 			s.installed = true;
 			s.waiting = [watch] { return !Answered(watch); };
@@ -1024,6 +1161,47 @@ namespace Needs
 				r.max = 100.0f;
 				r.fraction = r.value / r.max;
 				r.stage = StepsReached(r.value, std::array{ 1.0f, stops / 2.0f, stops, (stops + hurts) / 2.0f, hurts });
+				return true;
+			};
+			return s;
+		}
+
+		// --- Vitality Mode (Nexus 16308, RadiantWings, 2.10) -------------------------------------------
+		// Hunger, thirst and fatigue are three globals, 0 fine to 100 dead, on while _JSW_VM_IsStarted is
+		// 1. _JSW_VM_Utility's CheckPenalty: under _JSW_VM_VitalityBonus (10) the bonus spell, over
+		// _JSW_VM_VitalityPenalty (60) the penalty, a warning past halfway from the penalty to 100, death
+		// at 100; both lines are MCM sliders, so they're read live. Our stages: 1 at the bonus line,
+		// 2 halfway to the penalty, 3 the penalty, 4 the warning, 5 halfway from the warning to death.
+		// Read from 1.7's esp (not ESL) and scripts; not tested in game.
+
+		Source VitalityModeSource(const char* a_editorID, RE::FormID a_global, Names a_names)
+		{
+			Source s;
+			s.mod = "Vitality Mode";
+			s.names = a_names;
+			if (!Loaded(VITALITY_MODE)) {
+				return s;
+			}
+			auto* need = FindGlobal(a_editorID, a_global, VITALITY_MODE);
+			auto* started = FindGlobal("_JSW_VM_IsStarted", 0x014C23, VITALITY_MODE);
+			auto* bonus = FindGlobal("_JSW_VM_VitalityBonus", 0x065C98, VITALITY_MODE);
+			auto* penalty = FindGlobal("_JSW_VM_VitalityPenalty", 0x065C99, VITALITY_MODE);
+			if (!need) {
+				return s;
+			}
+			s.installed = true;
+			s.read = [=](Reading& r, std::string& why, std::string&) {
+				if (started && started->value != 1.0f) {
+					why = "Vitality Mode isn't started (its MCM's Started box).";
+					return false;
+				}
+				const float pen = std::clamp(penalty ? penalty->value : 60.0f, 1.0f, 99.0f);
+				const float bon = std::clamp(bonus ? bonus->value : 10.0f, 0.0f, pen);
+				const float warn = 100.0f - (100.0f - pen) / 2.0f;
+				r.value = std::clamp(need->value, 0.0f, 100.0f);
+				r.max = 100.0f;
+				r.fraction = r.value / r.max;
+				r.stage = StepsReached(r.value, std::array{ bon, (bon + pen) / 2.0f, pen, warn, (warn + 100.0f) / 2.0f }, true);
 				return true;
 			};
 			return s;
@@ -1551,6 +1729,9 @@ namespace Needs
 			}
 			const std::string_view in = plugin != a_def.plugins.end() ? std::string_view(*plugin) : ""sv;
 			const std::string      what = std::format("{} for {}", a_def.mod, a_icon.name);
+			if (a_def.type == "diseaserank") {
+				return DiseaseRankSource(a_icon, a_def);
+			}
 
 			std::function<bool(float&, std::string&)> value;
 			if (a_def.type == "global") {
@@ -1944,7 +2125,22 @@ namespace Needs
 				auto* const dh = RE::TESDataHandler::GetSingleton();
 				auto*       duration = FindGlobal("_quantLanternsWithFuelDuration", 0x019D16, in);
 				auto*       elapsed = FindGlobal("_quantLanternsWithFuelElapsed", 0x019D15, in);
-				auto*       lantern = dh->LookupForm<RE::TESBoundObject>(0x03378D, in);
+				RE::TESBoundObject* lantern = dh->LookupForm<RE::TESObjectMISC>(0x03378D, in);
+				if (!lantern) {
+					// 2.10 (Mirax: tank and burned found, lantern not): an ESLified copy renumbers it, and
+					// the game keeps no editor IDs for misc items. The fuelled lantern is the plugin's own
+					// misc item with the lantern model (its fuel is a wine bottle; its Lantern01 change
+					// belongs to Skyrim.esm). Checked in 0.3's esp.
+					for (auto* misc : dh->GetFormArray<RE::TESObjectMISC>()) {
+						const auto* file = misc ? misc->GetFile(0) : nullptr;
+						if (file && _stricmp(file->GetFilename().data(), std::string(in).c_str()) == 0 &&
+							_stricmp(misc->GetModel(), "Clutter\\Common\\CandleLantern01.nif") == 0) {
+							lantern = misc;
+							logs::info("{}: lantern found by its model ({:08X})", what, misc->GetFormID());
+							break;
+						}
+					}
+				}
 				std::vector<RE::EffectSetting*> lights;
 				for (const auto id : { 0x0012C5u, 0x004348u, 0x004349u, 0x005E3Au }) {
 					if (auto* e = dh->LookupForm<RE::EffectSetting>(id, "QuickLight.esp")) {
@@ -1986,6 +2182,70 @@ namespace Needs
 						}
 					}
 					v = std::clamp(100.0f * (duration->value - elapsed->value - burning) / duration->value, 0.0f, 100.0f);
+					return true;
+				};
+			} else if (a_def.type == "werewolftime") {
+				// Beast form time left, real seconds (ladyshaiana). PlayerWerewolfChangeScript sets
+				// PlayerWerewolfShiftBackTime to GameDaysPassed + StandardDurationSeconds in game days,
+				// and feeding pushes it on; it changes back once GameDaysPassed passes it. Game days to
+				// real seconds is x 86400 / TimeScale, as its own GameTimeDaysToRealTimeSeconds does.
+				auto* back = FindGlobal("PlayerWerewolfShiftBackTime", 0x02BA19, "Skyrim.esm");
+				auto* days = FindGlobal("GameDaysPassed", 0x000039, "Skyrim.esm");
+				auto* scale = FindGlobal("TimeScale", 0x00003A, "Skyrim.esm");
+				if (!back || !days || !scale) {
+					return s;
+				}
+				value = [back, days, scale](float& v, std::string& why) {
+					const float left = back->value - days->value;
+					if (left <= 0.0f || scale->value <= 0.0f) {
+						why = "You aren't in beast form.";
+						return false;
+					}
+					v = left * 86400.0f / scale->value;
+					return true;
+				};
+			} else if (a_def.type == "simpleneedshome") {
+				// Simple Needs Expanded's homesickness (see SimpleNeedsExpandedSource): hours since you
+				// were last home, put on a scale where its warning hours are 60 and its homesick hours
+				// 100, since both can be moved from the console. Nothing to count until it has seen
+				// you in a player home once (HasHome), or while it's switched off.
+				if (!expandedQuest) {
+					logs::info("{}: Simple Needs Expanded's quest not found in {}", what, in);
+					return s;
+				}
+				auto* spell = FindSpell("mzin_SSN_SpellHomesick", 0x000021, in);
+				auto* at = FindGlobal("aaaSSN_HoursToGetHomesick", 0x000015, in);
+				auto* warn = FindGlobal("aaaSSN_HoursToGetHomesickWarning", 0x000016, in);
+				auto* track = FindGlobal("aaaSSN_ShouldTrackHomesick", 0x00001D, in);
+				auto  watch = expandedWatch;
+				s.waiting = [watch] { return !Answered(watch); };
+				value = [watch, spell, at, warn, track, mod = a_def.mod](float& v, std::string& why) {
+					if (track && track->value <= 0.0f) {
+						why = std::format("{} has it switched off.", mod);
+						return false;
+					}
+					const auto got = Latest(watch);
+					if (got.size() <= kHasHome || !got[kHasHome]) {
+						why = std::format("{}'s script value can't be read yet.", mod);
+						return false;
+					}
+					if (*got[kHasHome] == 0.0f) {
+						why = std::format("{} hasn't seen you in a player home yet.", mod);
+						return false;
+					}
+					const float atHours = at && at->value > 0.0f ? at->value : 120.0f;
+					const float warnHours = std::clamp(warn ? warn->value : 72.0f, 0.0f, atHours);
+					const float hours = ExpandedHoursSince(got, kLastHome).value_or(0.0f);
+					if (hours >= atHours) {
+						v = 100.0f;
+					} else if (hours >= warnHours) {
+						v = 60.0f + 40.0f * (hours - warnHours) / (atHours - warnHours);
+					} else {
+						v = warnHours > 0.0f ? 60.0f * hours / warnHours : 60.0f;
+					}
+					if (PlayerHas(spell)) {
+						v = 100.0f;
+					}
 					return true;
 				};
 			} else if (a_def.type == "wounds") {
@@ -2161,6 +2421,12 @@ namespace Needs
 		auto* inThirstEnabled = Loaded(IMMERSIVE_NEEDS) ? RE::TESDataHandler::GetSingleton()->LookupForm<RE::TESGlobal>(0xA08, IMMERSIVE_NEEDS) : nullptr;
 		auto* inSleepless = Loaded(IMMERSIVE_NEEDS) ? RE::TESDataHandler::GetSingleton()->LookupForm<RE::TESGlobal>(0x8DB, IMMERSIVE_NEEDS) : nullptr;
 		rndOn = Loaded(RND) ? FindGlobal("RND_State", 0x012C4C, RND) : nullptr;
+		if (Loaded(SIMPLE_NEEDS)) {
+			expandedQuest = FindQuest("mzin_SSN_Quest (Simple Needs Expanded)", 0x000001, SIMPLE_NEEDS);
+			if (expandedQuest) {
+				expandedWatch = Watch(expandedQuest, 0, "mzin_SSN_PlayerAlias", { "LastMealT", "LastRestT", "LastDrinkT", "LastHomeT", "HasHome" });
+			}
+		}
 
 		// In the order they are tried: the first one running feeds the icon.
 		sources[kHunger] = {
@@ -2173,6 +2439,9 @@ namespace Needs
 			ImmersiveNeedsSource("hunger", 0x83B, "Hungry", 3, 0x9EF, "Starving", "Fed", nullptr, 0.0f, ""),
 			SimpleNeedsSource("LocalLastMealTime", "mzin_SSN_SpellHungry", 0x005906, 10.0f, 12.0f,
 				{ "Fed", "Fed", "Getting Hungry", "Hungry", "Hungry", "Hungry" }),
+			SimpleNeedsExpandedSource("Hungry", "Hunger", kLastMeal, 0x000006, 0x00000F, 0x000010, 0x00001B, 8.0f, 6.0f,
+				{ "Fed", "Fed", "Getting Hungry", "Hungry", "Hungry", "Hungry" }),
+			VitalityModeSource("_JSW_VM_Hunger", 0x00FB0F, { "Vitalized", "Fed", "Peckish", "Hungry", "Starving", "Starving to Death" }),
 			RndSource("RND_HungerPoints", 0x002884, { 5, 30, 60, 120, 240 },
 				{ "Overindulged", "Satiated", "Peckish", "Hungry", "Very Hungry", "Starving" }),
 		};
@@ -2194,6 +2463,9 @@ namespace Needs
 				"Immersive Needs has sleep switched off (Sleepless Undeath)."),
 			SimpleNeedsSource("LocalLastRestTime", "mzin_SSN_SpellSleepy", 0x005908, 20.0f, 24.0f,
 				{ "Rested", "Rested", "Getting Sleepy", "Sleepy", "Sleepy", "Sleepy" }),
+			SimpleNeedsExpandedSource("Sleepy", "Sleep", kLastRest, 0x000007, 0x000011, 0x000012, 0x00001F, 18.0f, 16.0f,
+				{ "Rested", "Rested", "Getting Sleepy", "Sleepy", "Sleepy", "Sleepy" }),
+			VitalityModeSource("_JSW_VM_Fatigue", 0x00FB11, { "Vitalized", "Rested", "Tired", "Very Tired", "Exhausted", "Collapsing" }),
 			RndSource("RND_SleepPoints", 0x00BAC2, { 15, 30, 60, 120, 240 },
 				{ "Not Tired", "Not Tired", "Slightly Tired", "Tired", "Very Tired", "Exhausted" }),
 		};
@@ -2207,6 +2479,9 @@ namespace Needs
 			TearsOfKyneSource(),
 			ImmersiveNeedsSource("thirst", 0x83D, "Thirsty", 3, 0x9F0, "Dehydrated", "Quenched", inThirstEnabled, 0.0f,
 				"Immersive Needs has thirst switched off."),
+			SimpleNeedsExpandedSource("Thirsty", "Thirst", kLastDrink, 0x000020, 0x000013, 0x000014, 0x00001C, 8.0f, 6.0f,
+				{ "Quenched", "Quenched", "Getting Thirsty", "Thirsty", "Thirsty", "Thirsty" }),
+			VitalityModeSource("_JSW_VM_Thirst", 0x00FB10, { "Vitalized", "Quenched", "Thirsty", "Very Thirsty", "Parched", "Dying of Thirst" }),
 			RndSource("RND_ThirstPoints", 0x002E07, { 20, 40, 80, 160, 240 },
 				{ "Quenched", "Quenched", "Slightly Thirsty", "Thirsty", "Very Thirsty", "Dehydrated" }),
 		};
@@ -2222,6 +2497,7 @@ namespace Needs
 			if (const auto* icon = Extras::Get(static_cast<Id>(id))) {
 				for (const auto& def : icon->sources) {
 					sources[id].push_back(ExtraSource(*icon, def));
+					perDisease[id] = perDisease[id] || def.type == "diseaserank";
 				}
 			}
 		}
@@ -2310,6 +2586,7 @@ namespace Needs
 			lastWhy[a_id] = why;
 		} else {
 			lastFine[a_id] = FineText(a_id, *used);
+			lastNames[a_id] = used->names;
 		}
 		return r;
 	}
@@ -2327,6 +2604,9 @@ namespace Needs
 
 	bool Installed(Id a_id)
 	{
+		if (a_id < kCount && perDisease[a_id] && !Settings::GetGeneral().diseaseEach) {
+			return false;  // one icon per disease is off: Disease 2-6 aren't there at all (3.0)
+		}
 		return a_id < kCount && std::ranges::any_of(sources[a_id], [](const Source& s) { return s.installed; });
 	}
 
@@ -2339,6 +2619,24 @@ namespace Needs
 		}
 		const auto* extra = Extras::Get(a_id);
 		return extra ? extra->name.c_str() : "";
+	}
+
+	std::string DefaultArt(Id a_id)
+	{
+		// The built-in needs' pictures, as widget.as names them (ICON_NAMES).
+		constexpr std::array ART{ "hunger", "cold", "fatigue", "stress", "dirt", "encumbrance", "thirst", "wetness", "vitality", "disease" };
+		static_assert(ART.size() == kBuiltInCount);
+		if (a_id < kBuiltInCount) {
+			return ART[a_id];
+		}
+		const auto* extra = Extras::Get(a_id);
+		return extra ? extra->art : std::string();
+	}
+
+	std::string Art(Id a_id)
+	{
+		auto own = a_id < kCount ? Settings::Get(a_id).art : std::string();
+		return own.empty() ? DefaultArt(a_id) : own;
 	}
 
 	std::string WhyHidden(Id a_id)
@@ -2354,6 +2652,29 @@ namespace Needs
 	}
 
 	int FineUpTo(Id a_id)
+	{
+		if (const int own = a_id < kCount ? Settings::Get(a_id).fineUpTo : -1; own >= 0) {
+			return (std::min)(own, 5);
+		}
+		return DefaultFineUpTo(a_id);
+	}
+
+	std::array<const char*, 6> StageNames(Id a_id)
+	{
+		if (a_id >= kCount) {
+			return {};
+		}
+		{
+			std::scoped_lock l(lastLock);
+			if (lastNames[a_id][0]) {
+				return lastNames[a_id];
+			}
+		}
+		const auto first = std::ranges::find_if(sources[a_id], [](const Source& s) { return s.installed; });
+		return first != sources[a_id].end() ? first->names : Names{};
+	}
+
+	int DefaultFineUpTo(Id a_id)
 	{
 		constexpr std::array FINE_UP_TO{ 1, 1, 1, 1, 2, 2, 1, 1, 1, 0 };
 		static_assert(FINE_UP_TO.size() == kBuiltInCount);

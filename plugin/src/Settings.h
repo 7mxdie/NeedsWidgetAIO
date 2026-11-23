@@ -28,6 +28,16 @@ namespace Settings
 		// sSource (2.9.0, Brunny): read only from this mod (a source's sMod / mod name), for
 		// a game with two mods for one need. Empty: the first one running, as before.
 		std::string source;
+		// iFineUpTo (2.10, HardSignage): Hide when fine hides stages up to this one; -1 is the
+		// icon's own (Needs::DefaultFineUpTo).
+		int fineUpTo{ -1 };
+		// sArt (3.0, Tom): the picture this icon shows, a file name in Interface/NeedsWidget/icons/
+		// without .swf; empty is the icon's own.
+		std::string art;
+		// 3.0 (Fable's ideas, Tom: "add them all"). iWhere: 0 anywhere, 1 only outdoors, 2 only
+		// indoors. iGroup: 0 the main row or column, 1 the second one (General::line2X/Y).
+		int where{ 0 };
+		int group{ 0 };
 
 		bool operator==(const Icon&) const = default;
 	};
@@ -47,7 +57,9 @@ namespace Settings
 	{
 		kBoneToRed,   // bone white when fine, then gold, orange, red, bright red (Tom, 2026-10-21)
 		kGreenToRed,  // traffic light: green when fine through to bright red
-		kCustom
+		kCustom,
+		kStyle,  // 3.0: the picked style's own six colours (Styles::Style::colors); bone to red for Ring, Bar, Icon only and Fill
+		kBlueToOrange  // 3.0: for colour-blind players, pale blue to orange (Okabe-Ito); pair with bStagePips
 	};
 
 	// How the icons are laid out (Tom, TEST4: "make them vertical instead of
@@ -79,9 +91,22 @@ namespace Settings
 
 	struct General
 	{
+		// The whole widget on or off (bShowWidget). Off hides every icon and changes nothing else.
+		// A preset never changes it.
+		bool        showWidget{ true };
+		// One icon per disease (3.0, GenieA; Tom: a choice, not a change): Disease shows the worst,
+		// the Disease 2-6 icons (Icons/Disease N.ini, sType DiseaseRank) the next ones. Off: they
+		// don't exist anywhere, and Disease names the worst with (+N). bOneIconPerDisease.
+		bool        diseaseEach{ false };
+		// The menu offered the style made for the UI mod it found (3.0), once: used or turned down,
+		// it never asks again (bStyleOffered). Presets never change it.
+		bool        styleOffered{ false };
 		Look        look{ Look::kRing };
+		// 3.0 icon styles (Tom, 2026-11-23): a style's file name in NeedsWidget/Styles/ (sStyle, "-" for
+		// none). While it names a style that is there, it wins over look; empty means look.
+		std::string style;
 		bool        tintArt{ true };  // colour the glyphs by stage too, not only the meter
-		ColorScheme colors{ ColorScheme::kBoneToRed };
+		ColorScheme colors{ ColorScheme::kStyle };
 		bool        pulseWorst{ true };  // fade an icon in and out while its need is at its worst stage
 		// The numbers (Tom, TEST7/8): over or under the icon, their own size (they
 		// scale with the icon too), how far from it and sideways, in icon units.
@@ -91,7 +116,7 @@ namespace Settings
 		float       numberX{ 0.0f };
 		bool        numberTint{ false };  // colour the number like its icon
 		bool        numberEdge{ true };   // a dark edge round the number (phbd01, 2.3.0)
-		int         numberShows{ 0 };     // 0 the percent, 1 the stage's name (TEST10)
+		int         numberShows{ 0 };     // 0 the percent, 1 the stage's name (TEST10), 2 game hours until the worst stage (3.0)
 		int         numberAlign{ 0 };     // 0 centred under the icon, 1 starts at it, 2 ends at it (phbd01, vertical HUDs)
 		// HjalmarSeavuulf, 2026-10-27 (sight): the numbers' font, one of the game's own
 		// (fontconfig.txt names, so a font mod still applies), and their letter case.
@@ -110,9 +135,9 @@ namespace Settings
 		bool  flashWorse{ true };
 
 		// The widget's key (a keyboard scan code, 0 = none). 0: it hides and shows
-		// the widget; 1: it brings a faded widget back for a while.
+		// the widget (flips showWidget, kept at once); 1: it brings a faded widget back for a while.
 		int hotkey{ 0 };
-		int hotkeyMode{ 0 };
+		int hotkeyMode{ 0 };  // 2 (3.0): while held, every icon shows with its stage and what it does to you
 
 		// All icons together (Tom, 2026-10-21: scale them all at once, not one by one).
 		// groupSize scales every icon and the gaps between them about the middle of
@@ -141,6 +166,24 @@ namespace Settings
 		// The Custom colour scheme, best (0) to worst (5), as 0xRRGGBB (Tom, TEST5:
 		// pick them in the menu, not only in the ini). Starts as bone to red.
 		std::array<std::uint32_t, 6> customColors{ 0xECE9E2, 0xE8DDB0, 0xE8C870, 0xE8A060, 0xD9503F, 0xFF2E1F };
+
+		// 3.0, Fable 5.2's ideas (Tom: "add them all. 3.0 is meant to be the best of the best").
+		bool  worstFirst{ false };    // Row/Column in order of how bad each need is, worst at the chosen end (bWorstFirst)
+		int   maxShown{ 0 };          // show only this many, the worst; 0 = all (iMaxShown)
+		float growBad{ 0.0f };        // icons at stage 4 and 5 grow by this many percent (fGrowBad)
+		bool  hideInCombat{ false };  // bHideInCombat
+		bool  hideWeaponDrawn{ false };  // bHideWeaponDrawn
+		bool  hideMounted{ false };   // bHideMounted
+		bool  showInMenus{ false };   // stay up, every icon shown, in Sleep/Wait, inventory, barter, containers, gifts (bShowInMenus)
+		bool  flashBetter{ false };   // a soft flash when a stage gets better (bFlashBetter)
+		bool  callout{ false };       // the new stage's name shows by the icon for a few seconds (bStageCallout)
+		int   soundFrom{ 0 };         // play a sound when a need reaches this stage or worse; 0 = never (iSoundFrom)
+		int   sound{ 0 };             // which: 0 soft, 1 alert, 2 quest (iSound)
+		bool  stagePips{ false };     // five small pips by each icon, one lit per stage (bStagePips)
+		bool  trend{ false };         // a small arrow: getting worse or better (bTrendArrow)
+		// The second row or column (iGroup 1 icons), placed like the first (fLine2PosX/Y).
+		float line2X{ 4.0f };
+		float line2Y{ 87.0f };
 
 		bool operator==(const General&) const = default;
 	};
@@ -188,12 +231,16 @@ namespace Settings
 	void    Load();
 	bool    Save();                           // writes only what differs from the defaults; false if the file couldn't be written
 	bool    SaveShown(Needs::Id a_id);        // keeps that icon's Show this icon now, and leaves every other unsaved change unsaved
+	bool    SaveShowWidget(bool a_show);      // sets Show the widget and keeps it now, the same way (the hotkey and the General page)
+	bool    SaveStyleOffered();               // the UI-mod style offer was answered: kept now, the same way
 	void    ScanPresets();                    // reads the Presets folder again
 	std::vector<Preset> GetPresets();
 	void    ApplyPreset(const Preset& a_preset);  // like moving the sliders: Save makes it stick
 	bool    IsInUse(const Preset& a_preset);
 	bool    MatchesDefaults();
 	std::filesystem::path ExportPreset();     // every setting, to a new file; empty on failure
+	std::string PresetText();                 // every setting as preset text, for the clipboard (3.0)
+	std::filesystem::path PastePreset(const std::string& a_text);  // saves pasted preset text as a new preset and applies it; empty if it isn't one
 	void    RestoreAllDefaults();
 	void    ShowAllNumbers(bool a_show);       // every icon's "Show the number" at once
 	void    RestoreDefaults(Needs::Id a_id);  // that icon only; Save makes it stick
@@ -201,6 +248,8 @@ namespace Settings
 	Icon    Get(Needs::Id a_id);
 	void    Set(Needs::Id a_id, const Icon& a_icon);
 	General GetGeneral();
+	General GetGeneralDefaults();             // what Restore General's defaults puts back
+	Icon    GetDefaults(Needs::Id a_id);      // what Restore this icon's defaults puts back
 	void    SetGeneral(const General& a_general);
 	Style   GetStyle();
 	std::array<std::uint32_t, 6> StageColors(ColorScheme a_scheme);  // best to worst; Custom gives the current custom colours
