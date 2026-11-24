@@ -967,13 +967,18 @@ namespace Needs
 		// ability at 12 h; getting sleepy at 20 h, Sleepy at 24 h. Nothing past that. The hours
 		// come from those variables; if they can't be read, the ability alone gives Hungry or
 		// Sleepy. No on/off switch. Read from 1.00's script; not tested in game.
+		// Simple Needs Expanded (below) has the same plugin name and quest editor ID, so FindQuest's
+		// editor-ID fallback would hand its quest to this reader, which then reads 0 (3.0.0, Nick:
+		// hunger and fatigue at 0%). With Expanded's quest found, this one stays out.
+
+		RE::TESQuest* expandedQuest{ nullptr };  // Simple Needs Expanded's quest; Init finds it before the sources
 
 		Source SimpleNeedsSource(const char* a_variable, const char* a_spellName, RE::FormID a_spell, float a_warn, float a_at, Names a_names)
 		{
 			Source s;
 			s.mod = "Super Simple Needs";
 			s.names = a_names;
-			if (!Loaded(SIMPLE_NEEDS)) {
+			if (!Loaded(SIMPLE_NEEDS) || expandedQuest) {
 				return s;
 			}
 			auto* quest = FindQuest("mzin_SSN_Quest", 0x005901, SIMPLE_NEEDS);
@@ -1006,8 +1011,8 @@ namespace Needs
 
 		// --- Simple Needs Expanded - Eat Sleep Drink Go Home (Nexus 180298) ------------------------
 		// Ships as Super Simple Needs.esp too, ESL-flagged or not (same form IDs), with the same quest,
-		// alias and script names, but its own records: the quest is 000001, so the original's 005901
-		// isn't there and the two never both read. mzin_SSN_PlayerAlias keeps when you last ate,
+		// alias and script names, but its own records: the quest is 000001, not the original's 005901,
+		// and while it's found the original's reader stays out. mzin_SSN_PlayerAlias keeps when you last ate,
 		// drank, slept and were home (LastMealT, LastDrinkT, LastRestT, LastHomeT, in game days),
 		// checked every aaaSSN_UpdateInterval game hours: a warning message from
 		// aaaSSN_HoursToGet<Need>Warning, the penalty ability from aaaSSN_HoursToGet<Need>. Those and
@@ -1015,7 +1020,6 @@ namespace Needs
 		// read live. Homesick is the extra icon in Icons/Homesick.ini (sType SimpleNeedsHome). Read
 		// from 1.0's esp and script; tested in game by its author (Nick, 2026-11-22).
 
-		RE::TESQuest*                expandedQuest{ nullptr };
 		std::shared_ptr<ScriptWatch> expandedWatch;
 		enum ExpandedVariable : std::size_t
 		{
